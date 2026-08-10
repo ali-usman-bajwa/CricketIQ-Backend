@@ -2,10 +2,25 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const User = require("../models/User");
+const Player = require("../models/Player");
 
 const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+
+      // Player-specific fields
+      age,
+      playerRole,
+      battingStyle,
+      bowlingStyle,
+      team,
+      country,
+      image,
+    } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -14,7 +29,9 @@ const register = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({
+      email: email.toLowerCase().trim(),
+    });
 
     if (existingUser) {
       return res.status(400).json({
@@ -23,27 +40,109 @@ const register = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const allowedRoles = ["Player", "Coach"];
+
+    const userRole = role || "Player";
+
+    if (!allowedRoles.includes(userRole)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role",
+      });
+    }
+
+    // -----------------------------
+    // Validate Player information
+    // -----------------------------
+
+    if (userRole === "Player") {
+      if (
+        age === undefined ||
+        !playerRole ||
+        !battingStyle ||
+        !country
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Age, player role, batting style and country are required for players",
+        });
+      }
+    }
+
+    // -----------------------------
+    // Hash password
+    // -----------------------------
+
+    const hashedPassword = await bcrypt.hash(
+      password,
+      10
+    );
+
+    // -----------------------------
+    // Create User
+    // -----------------------------
 
     const user = await User.create({
       name,
-      email,
+      email: email.toLowerCase().trim(),
       password: hashedPassword,
-      role,
+      role: userRole,
     });
 
-    res.status(201).json({
+    // -----------------------------
+    // Create Player profile
+    // -----------------------------
+
+    let player = null;
+
+    if (userRole === "Player") {
+      player = await Player.create({
+        user: user._id,
+        name: user.name,
+        age,
+        role: playerRole,
+        battingStyle,
+        bowlingStyle: bowlingStyle || "None",
+        team: null,
+        country,
+        image,
+      });
+    }
+
+    // -----------------------------
+    // Response
+    // -----------------------------
+
+    return res.status(201).json({
       success: true,
       message: "User registered successfully",
+
       data: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+
+        player: player
+          ? {
+              id: player._id,
+              name: player.name,
+              role: player.role,
+              battingStyle: player.battingStyle,
+              bowlingStyle: player.bowlingStyle,
+              team: player.team,
+              country: player.country,
+            }
+          : null,
       },
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("Registration Error:", error);
+
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
@@ -61,7 +160,9 @@ const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+    });
 
     if (!user) {
       return res.status(401).json({
@@ -93,10 +194,12 @@ const login = async (req, res) => {
       }
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Login successful",
+
       token,
+
       user: {
         id: user._id,
         name: user.name,
@@ -105,7 +208,9 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("Login Error:", error);
+
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
@@ -114,7 +219,9 @@ const login = async (req, res) => {
 
 const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id)
+      .select("-password")
+      .lean();
 
     if (!user) {
       return res.status(404).json({
@@ -123,10 +230,20 @@ const getCurrentUser = async (req, res) => {
       });
     }
 
+    let player = null;
+
+    if (user.role === "Player") {
+      player = await Player.findOne({
+        user: user._id,
+      }).lean();
+    }
+
     return res.status(200).json({
       success: true,
+
       data: {
         user,
+        player,
       },
     });
   } catch (error) {
@@ -140,5 +257,5 @@ const getCurrentUser = async (req, res) => {
 module.exports = {
   register,
   login,
-  getCurrentUser
+  getCurrentUser,
 };

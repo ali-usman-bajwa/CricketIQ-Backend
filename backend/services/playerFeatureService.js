@@ -5,7 +5,85 @@ const {
   calculateFeatures,
 } = require("./featureEngineering");
 
+// =====================================================
+// SELECT THE CORRECT PERFORMANCE DATA
+// =====================================================
+
+const getAnalysisReport = (performance) => {
+
+  // ---------------------------------------------------
+  // COACH VERIFIED
+  // ---------------------------------------------------
+
+  if (
+    performance.verificationStatus === "COACH_VERIFIED"
+  ) {
+    if (!performance.unifiedPerformance) {
+      return null;
+    }
+
+    return {
+      source: "UNIFIED",
+      report: performance.unifiedPerformance,
+    };
+  }
+
+  // ---------------------------------------------------
+  // PLAYER REPORTED
+  // ---------------------------------------------------
+
+  if (
+    performance.verificationStatus === "PLAYER_REPORTED"
+  ) {
+    if (!performance.playerReport) {
+      return null;
+    }
+
+    return {
+      source: "PLAYER",
+      report: performance.playerReport,
+    };
+  }
+
+  // ---------------------------------------------------
+  // COACH REPORTED BUT NOT VERIFIED
+  // ---------------------------------------------------
+  //
+  // If player data exists, use player's data
+  // until both reports are available.
+  //
+  // If only coach data exists, ignore it because
+  // it has not been verified yet.
+  // ---------------------------------------------------
+
+  if (
+    performance.verificationStatus === "COACH_REPORTED"
+  ) {
+
+    // Player report exists → use player data temporarily
+    if (performance.playerReport) {
+      return {
+        source: "PLAYER",
+        report: performance.playerReport,
+      };
+    }
+
+    // Coach report alone is not verified yet
+    return null;
+  }
+
+  return null;
+};
+
+// =====================================================
+// BUILD PLAYER FEATURES
+// =====================================================
+
 const buildPlayerFeatures = async (playerId) => {
+
+  // ---------------------------------------------------
+  // FIND PLAYER
+  // ---------------------------------------------------
 
   const player = await Player.findById(playerId);
 
@@ -13,11 +91,15 @@ const buildPlayerFeatures = async (playerId) => {
     throw new Error("Player not found");
   }
 
+  // ---------------------------------------------------
+  // GET PERFORMANCE RECORDS
+  // ---------------------------------------------------
 
   const performances = await Performance.find({
     player: playerId,
-  }).sort({ createdAt: -1 });
-
+  }).sort({
+    createdAt: -1,
+  });
 
   if (performances.length === 0) {
     throw new Error(
@@ -25,66 +107,155 @@ const buildPlayerFeatures = async (playerId) => {
     );
   }
 
-  const matches = performances.length;
+  // ===================================================
+  // SELECT CORRECT ANALYSIS DATA
+  // ===================================================
 
-  const totalRuns = performances.reduce(
-    (sum, p) => sum + p.runs,
-    0
-  );
+  const analysisPerformances = [];
 
-  const totalBalls = performances.reduce(
-    (sum, p) => sum + p.balls,
-    0
-  );
+  for (const performance of performances) {
 
-  const totalFours = performances.reduce(
-    (sum, p) => sum + p.fours,
-    0
-  );
+    const analysis =
+      getAnalysisReport(performance);
 
-  const totalSixes = performances.reduce(
-    (sum, p) => sum + p.sixes,
-    0
-  );
+    if (!analysis) {
+      continue;
+    }
 
-  const totalWickets = performances.reduce(
-    (sum, p) => sum + p.wickets,
-    0
-  );
+    analysisPerformances.push({
+      id: performance._id,
+      source: analysis.source,
+      report: analysis.report,
+      createdAt: performance.createdAt,
+    });
+  }
+
+  // ---------------------------------------------------
+  // NO USABLE DATA
+  // ---------------------------------------------------
+
+  if (analysisPerformances.length === 0) {
+    throw new Error(
+      "No valid performance data available for analysis"
+    );
+  }
+
+  // ===================================================
+  // AGGREGATED STATISTICS
+  // ===================================================
+
+  const matches =
+    analysisPerformances.length;
+
+  const totalRuns =
+    analysisPerformances.reduce(
+      (sum, performance) =>
+        sum +
+        Number(
+          performance.report.runs || 0
+        ),
+      0
+    );
+
+  const totalBalls =
+    analysisPerformances.reduce(
+      (sum, performance) =>
+        sum +
+        Number(
+          performance.report.balls || 0
+        ),
+      0
+    );
+
+  const totalFours =
+    analysisPerformances.reduce(
+      (sum, performance) =>
+        sum +
+        Number(
+          performance.report.fours || 0
+        ),
+      0
+    );
+
+  const totalSixes =
+    analysisPerformances.reduce(
+      (sum, performance) =>
+        sum +
+        Number(
+          performance.report.sixes || 0
+        ),
+      0
+    );
+
+  const totalWickets =
+    analysisPerformances.reduce(
+      (sum, performance) =>
+        sum +
+        Number(
+          performance.report.wickets || 0
+        ),
+      0
+    );
 
   const totalRunsConceded =
-    performances.reduce(
-      (sum, p) => sum + p.runsConceded,
+    analysisPerformances.reduce(
+      (sum, performance) =>
+        sum +
+        Number(
+          performance.report.runsConceded || 0
+        ),
       0
     );
 
   const totalOvers =
-    performances.reduce(
-      (sum, p) => sum + p.oversBowled,
+    analysisPerformances.reduce(
+      (sum, performance) =>
+        sum +
+        Number(
+          performance.report.oversBowled || 0
+        ),
       0
     );
 
-  const dismissals = performances.filter(
-    (p) => p.dismissed
-  ).length;
+  // ===================================================
+  // BATTING AVERAGE
+  // ===================================================
+
+  const dismissals =
+    analysisPerformances.filter(
+      (performance) =>
+        performance.report.dismissed === true
+    ).length;
 
   const battingAverage =
     dismissals > 0
       ? totalRuns / dismissals
       : totalRuns;
 
+  // ===================================================
+  // STRIKE RATE
+  // ===================================================
+
   const strikeRate =
     totalBalls > 0
       ? (totalRuns / totalBalls) * 100
       : 0;
+
+  // ===================================================
+  // ECONOMY
+  // ===================================================
 
   const economy =
     totalOvers > 0
       ? totalRunsConceded / totalOvers
       : 0;
 
+  // ===================================================
+  // RECENT FORM
+  // ===================================================
+
   const recentPerformances =
-    performances.slice(0, 5);
+    analysisPerformances.slice(0, 5);
 
   const recentWeights = [
     0.40,
@@ -97,34 +268,54 @@ const buildPlayerFeatures = async (playerId) => {
   let weightedRuns = 0;
   let totalWeight = 0;
 
-  recentPerformances.forEach((performance, index) => {
-    const weight = recentWeights[index];
+  recentPerformances.forEach(
+    (performance, index) => {
 
-    weightedRuns += performance.runs * weight;
-    totalWeight += weight;
-  });
+      const weight =
+        recentWeights[index];
+
+      if (!weight) {
+        return;
+      }
+
+      weightedRuns +=
+        Number(
+          performance.report.runs || 0
+        ) * weight;
+
+      totalWeight += weight;
+    }
+  );
 
   const weightedRecentAverage =
     totalWeight > 0
       ? weightedRuns / totalWeight
       : 0;
 
-  const recentForm = Math.min(
-    100,
-    (weightedRecentAverage / 50) * 100
-  );
+  const recentForm =
+    Math.min(
+      100,
+      (weightedRecentAverage / 50) * 100
+    );
 
-  const runValues = performances.map(
-    (p) => p.runs
-  );
+  // ===================================================
+  // CONSISTENCY
+  // ===================================================
 
+  const runValues =
+    analysisPerformances.map(
+      (performance) =>
+        Number(
+          performance.report.runs || 0
+        )
+    );
 
   const averageRuns =
     runValues.reduce(
-      (sum, runs) => sum + runs,
+      (sum, runs) =>
+        sum + runs,
       0
     ) / runValues.length;
-
 
   const variance =
     runValues.reduce(
@@ -137,21 +328,27 @@ const buildPlayerFeatures = async (playerId) => {
       0
     ) / runValues.length;
 
-
   const standardDeviation =
     Math.sqrt(variance);
 
+  const consistency =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        100 -
+          (standardDeviation /
+            Math.max(
+              averageRuns,
+              1
+            )) *
+            100
+      )
+    );
 
-  const consistency = Math.max(
-    0,
-    Math.min(
-      100,
-      100 -
-      (standardDeviation /
-        Math.max(averageRuns, 1)) *
-      100
-    )
-  );
+  // ===================================================
+  // STATISTICS
+  // ===================================================
 
   const statistics = {
     matches,
@@ -167,14 +364,38 @@ const buildPlayerFeatures = async (playerId) => {
     consistency,
   };
 
+  // ===================================================
+  // FEATURE ENGINEERING
+  // ===================================================
 
-  const features = calculateFeatures(
-    player,
-    statistics
-  );
+  const features =
+    calculateFeatures(
+      player,
+      statistics
+    );
+
+  // ===================================================
+  // DETERMINE CURRENT DATA SOURCE
+  // ===================================================
+
+  const hasUnifiedData =
+    analysisPerformances.some(
+      (performance) =>
+        performance.source ===
+        "UNIFIED"
+    );
+
+  let analysisSource = "PLAYER";
+
+  if (hasUnifiedData) {
+    analysisSource = "UNIFIED";
+  }
+
+  // ===================================================
+  // RETURN
+  // ===================================================
 
   return {
-
     player: {
       id: player._id,
       name: player.name,
@@ -182,26 +403,53 @@ const buildPlayerFeatures = async (playerId) => {
       age: player.age,
     },
 
+    // Tells ML/AI/frontend what data was used.
+    performanceSource:
+      analysisSource,
+
     features,
 
-    performances: recentPerformances.map(
-      (performance) => ({
-        id: performance._id,
-        runs: performance.runs,
-        balls: performance.balls,
-        fours: performance.fours,
-        sixes: performance.sixes,
-        wickets: performance.wickets,
-        runsConceded:
-          performance.runsConceded,
-        oversBowled:
-          performance.oversBowled,
-        dismissed:
-          performance.dismissed,
-        createdAt:
-          performance.createdAt,
-      })
-    ),
+    statistics,
+
+    performances:
+      recentPerformances.map(
+        (performance) => ({
+          id: performance.id,
+
+          source:
+            performance.source,
+
+          runs:
+            performance.report.runs,
+
+          balls:
+            performance.report.balls,
+
+          fours:
+            performance.report.fours,
+
+          sixes:
+            performance.report.sixes,
+
+          wickets:
+            performance.report.wickets,
+
+          runsConceded:
+            performance.report
+              .runsConceded,
+
+          oversBowled:
+            performance.report
+              .oversBowled,
+
+          dismissed:
+            performance.report
+              .dismissed,
+
+          createdAt:
+            performance.createdAt,
+        })
+      ),
   };
 };
 

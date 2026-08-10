@@ -1,19 +1,7 @@
 const mongoose = require("mongoose");
 
-const performanceSchema = new mongoose.Schema(
+const performanceDataSchema = new mongoose.Schema(
   {
-    player: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Player",
-      required: true,
-    },
-
-    match: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Match",
-      required: true,
-    },
-
     runs: {
       type: Number,
       default: 0,
@@ -71,6 +59,108 @@ const performanceSchema = new mongoose.Schema(
     dismissed: {
       type: Boolean,
       default: false,
+    },
+  },
+  { _id: false }
+);
+
+const coachEvaluationSchema = new mongoose.Schema(
+  {
+    shotSelection: {
+      type: Number,
+      min: 0,
+      max: 10,
+    },
+
+    decisionMaking: {
+      type: Number,
+      min: 0,
+      max: 10,
+    },
+
+    pressureHandling: {
+      type: Number,
+      min: 0,
+      max: 10,
+    },
+
+    fieldAwareness: {
+      type: Number,
+      min: 0,
+      max: 10,
+    },
+
+    communication: {
+      type: Number,
+      min: 0,
+      max: 10,
+    },
+
+    comments: {
+      type: String,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
+const performanceSchema = new mongoose.Schema(
+  {
+    player: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Player",
+      required: true,
+    },
+
+    match: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Match",
+      required: true,
+    },
+
+    // Data submitted by the player
+    playerReport: {
+      type: performanceDataSchema,
+      default: null,
+    },
+
+    // Data submitted/verified by the coach
+    coachReport: {
+      type: performanceDataSchema,
+      default: null,
+    },
+
+    // Professional observations made by the coach
+    coachEvaluation: {
+      type: coachEvaluationSchema,
+      default: null,
+    },
+
+    // Final data used by CricketIQ intelligence
+    unifiedPerformance: {
+      type: performanceDataSchema,
+      default: null,
+    },
+
+    verificationStatus: {
+      type: String,
+      enum: [
+        "PLAYER_REPORTED",
+        "COACH_REPORTED",
+        "COACH_VERIFIED",
+      ],
+      default: "PLAYER_REPORTED",
+    },
+
+    verifiedAt: {
+      type: Date,
+      default: null,
+    },
+
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
   },
   {

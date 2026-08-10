@@ -21,6 +21,12 @@ const teamSchema = new mongoose.Schema(
       trim: true,
     },
 
+    coach: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     captain: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Player",

@@ -19,13 +19,12 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      minlength: 6,
     },
 
     role: {
       type: String,
-      enum: ["player", "coach", "scout", "admin"],
-      default: "player",
+      enum: ["Player", "Coach", "Admin"],
+      default: "Player",
     },
   },
   {

@@ -8,11 +8,23 @@ const {
   predictPlayerPotential,
 } = require("./mlService");
 
+// =====================================================
+// BUILD RECOMMENDED TEAM
+// =====================================================
 
-const buildRecommendedTeam = async ({ playerIds, format }) => {
+const buildRecommendedTeam = async ({
+  playerIds,
+  format,
+}) => {
+
+  // ===================================================
+  // VALIDATE PLAYER IDS
+  // ===================================================
 
   if (!Array.isArray(playerIds)) {
-    throw new Error("playerIds must be an array");
+    throw new Error(
+      "playerIds must be an array"
+    );
   }
 
   if (playerIds.length < 11) {
@@ -27,27 +39,68 @@ const buildRecommendedTeam = async ({ playerIds, format }) => {
     );
   }
 
+  // ===================================================
+  // REMOVE DUPLICATES
+  // ===================================================
+
+  const uniquePlayerIds = [
+    ...new Set(
+      playerIds.map((id) =>
+        id.toString()
+      )
+    ),
+  ];
+
+  if (
+    uniquePlayerIds.length !==
+    playerIds.length
+  ) {
+    throw new Error(
+      "Duplicate player IDs are not allowed"
+    );
+  }
+
+  // ===================================================
+  // VALIDATE FORMAT
+  // ===================================================
+
   const allowedFormats = [
     "T20",
     "ODI",
     "TEST",
   ];
 
-  if (!allowedFormats.includes(format)) {
+  if (
+    !allowedFormats.includes(format)
+  ) {
     throw new Error(
       "Format must be T20, ODI, or TEST"
     );
   }
 
-  const players = await Player.find({
-    _id: { $in: playerIds },
-  });
+  // ===================================================
+  // GET PLAYERS
+  // ===================================================
 
-  if (players.length !== playerIds.length) {
+  const players =
+    await Player.find({
+      _id: {
+        $in: uniquePlayerIds,
+      },
+    });
+
+  if (
+    players.length !==
+    uniquePlayerIds.length
+  ) {
     throw new Error(
       "One or more players not found"
     );
   }
+
+  // ===================================================
+  // BUILD PLAYER DATA
+  // ===================================================
 
   const playerData = [];
 
@@ -78,9 +131,11 @@ const buildRecommendedTeam = async ({ playerIds, format }) => {
       );
 
     }
-
-
   }
+
+  // ===================================================
+  // MINIMUM PERFORMANCE DATA
+  // ===================================================
 
   if (playerData.length < 11) {
     throw new Error(
@@ -88,82 +143,136 @@ const buildRecommendedTeam = async ({ playerIds, format }) => {
     );
   }
 
-  const sortByPotential = (a, b) =>
+  // ===================================================
+  // SORTING
+  // ===================================================
+
+  const sortByPotential = (
+    a,
+    b
+  ) =>
     b.prediction.potentialScore -
     a.prediction.potentialScore;
 
-  const wicketkeepers = playerData
-    .filter(
-      (item) =>
-        item.player.role === "Wicket-Keeper"
-    )
-    .sort(sortByPotential);
+  const sortByImpact = (
+    a,
+    b
+  ) =>
+    b.features.overallImpact -
+    a.features.overallImpact;
 
-  const batters = playerData
-    .filter(
-      (item) =>
-        item.player.role === "Batter"
-    )
-    .sort(sortByPotential);
+  // ===================================================
+  // ROLE GROUPS
+  // ===================================================
 
-  const allRounders = playerData
-    .filter(
-      (item) =>
-        item.player.role === "All-Rounder"
-    )
-    .sort(sortByPotential);
+  const wicketkeepers =
+    playerData
+      .filter(
+        (item) =>
+          item.player.role ===
+          "Wicket-Keeper"
+      )
+      .sort(sortByPotential);
 
-  const bowlers = playerData
-    .filter(
-      (item) =>
-        item.player.role === "Bowler"
-    )
-    .sort(sortByPotential);
+  const batters =
+    playerData
+      .filter(
+        (item) =>
+          item.player.role ===
+          "Batter"
+      )
+      .sort(sortByPotential);
 
+  const allRounders =
+    playerData
+      .filter(
+        (item) =>
+          item.player.role ===
+          "All-Rounder"
+      )
+      .sort(sortByPotential);
 
-  if (wicketkeepers.length === 0) {
+  const bowlers =
+    playerData
+      .filter(
+        (item) =>
+          item.player.role ===
+          "Bowler"
+      )
+      .sort(sortByPotential);
+
+  // ===================================================
+  // ROLE VALIDATION
+  // ===================================================
+
+  if (
+    wicketkeepers.length === 0
+  ) {
     throw new Error(
       "At least 1 wicketkeeper is required"
     );
   }
 
-  if (batters.length < 3) {
+  if (
+    batters.length < 3
+  ) {
     throw new Error(
       "At least 3 specialist batters are required"
     );
   }
 
-  if (allRounders.length < 1) {
+  if (
+    allRounders.length < 1
+  ) {
     throw new Error(
       "At least 1 all-rounder is required"
     );
   }
 
-  if (bowlers.length < 3) {
+  if (
+    bowlers.length < 3
+  ) {
     throw new Error(
       "At least 3 specialist bowlers are required"
     );
   }
+
+  // ===================================================
+  // SELECT XI
+  // ===================================================
+
   const selected = [];
 
-  const addPlayer = (player) => {
+  const addPlayer = (
+    player
+  ) => {
 
     if (
-      player &&
-      selected.length < 11 &&
-      !selected.some(
-        (item) =>
-          item.player.id ===
-          player.player.id
-      )
+      !player ||
+      selected.length >= 11
     ) {
-      selected.push(player);
+      return;
     }
 
+    const alreadySelected =
+      selected.some(
+        (item) =>
+          item.player.id.toString() ===
+          player.player.id.toString()
+      );
 
+    if (!alreadySelected) {
+      selected.push(player);
+    }
   };
 
-  addPlayer(wicketkeepers[0]);
+  // ===================================================
+  // GUARANTEED ROLE REQUIREMENTS
+  // ===================================================
+
+  addPlayer(
+    wicketkeepers[0]
+  );
 
   batters
     .slice(0, 3)
@@ -177,61 +286,139 @@ const buildRecommendedTeam = async ({ playerIds, format }) => {
     .slice(0, 3)
     .forEach(addPlayer);
 
+  // ===================================================
+  // FILL REMAINING POSITIONS
+  // ===================================================
 
-  if (selected.length < 11) {
+  if (
+    selected.length < 11
+  ) {
 
-    const remaining = playerData
-      .filter(
-        (item) =>
-          !selected.some(
-            (selectedPlayer) =>
-              selectedPlayer.player.id ===
-              item.player.id
-          )
-      )
-      .sort(sortByPotential);
+    const remaining =
+      playerData
+        .filter(
+          (item) =>
+            !selected.some(
+              (selectedPlayer) =>
+                selectedPlayer.player.id
+                  .toString() ===
+                item.player.id
+                  .toString()
+            )
+        )
+        .sort(
+          (a, b) => {
 
-    remaining.forEach((player) => {
+            // First compare overall impact
+            const impactDifference =
+              b.features.overallImpact -
+              a.features.overallImpact;
 
-      if (selected.length < 11) {
-        addPlayer(player);
-      }
+            if (
+              impactDifference !== 0
+            ) {
+              return impactDifference;
+            }
 
-    });
+            // Then use potential score
+            return (
+              b.prediction.potentialScore -
+              a.prediction.potentialScore
+            );
+          }
+        );
 
-
+    remaining.forEach(
+      addPlayer
+    );
   }
 
-  if (selected.length < 11) {
+  // ===================================================
+  // FINAL VALIDATION
+  // ===================================================
+
+  if (
+    selected.length !== 11
+  ) {
     throw new Error(
       "Unable to build a complete XI from the provided players"
     );
   }
 
+  // ===================================================
+  // ROLE DISTRIBUTION
+  // ===================================================
+
   const finalRoleDistribution = {
-    batters: selected.filter(
-      (item) =>
-        item.player.role === "Batter"
-    ).length,
 
+    batters:
+      selected.filter(
+        (item) =>
+          item.player.role ===
+          "Batter"
+      ).length,
 
-    wicketkeepers: selected.filter(
-      (item) =>
-        item.player.role === "Wicket-Keeper"
-    ).length,
+    wicketkeepers:
+      selected.filter(
+        (item) =>
+          item.player.role ===
+          "Wicket-Keeper"
+      ).length,
 
-    allRounders: selected.filter(
-      (item) =>
-        item.player.role === "All-Rounder"
-    ).length,
+    allRounders:
+      selected.filter(
+        (item) =>
+          item.player.role ===
+          "All-Rounder"
+      ).length,
 
-    bowlers: selected.filter(
-      (item) =>
-        item.player.role === "Bowler"
-    ).length,
-
-
+    bowlers:
+      selected.filter(
+        (item) =>
+          item.player.role ===
+          "Bowler"
+      ).length,
   };
+
+  // ===================================================
+  // FINAL ROLE VALIDATION
+  // ===================================================
+
+  if (
+    finalRoleDistribution.wicketkeepers < 1
+  ) {
+    throw new Error(
+      "At least 1 wicketkeeper is required"
+    );
+  }
+
+  if (
+    finalRoleDistribution.batters < 3
+  ) {
+    throw new Error(
+      "At least 3 specialist batters are required"
+    );
+  }
+
+  if (
+    finalRoleDistribution.allRounders < 1
+  ) {
+    throw new Error(
+      "At least 1 all-rounder is required"
+    );
+  }
+
+  if (
+    finalRoleDistribution.bowlers < 3
+  ) {
+    throw new Error(
+      "At least 3 specialist bowlers are required"
+    );
+  }
+
+  // ===================================================
+  // ROLE ORDER FOR RESPONSE
+  // ===================================================
 
   const roleOrder = {
     "Wicket-Keeper": 1,
@@ -242,45 +429,73 @@ const buildRecommendedTeam = async ({ playerIds, format }) => {
 
   selected.sort(
     (a, b) =>
-      (roleOrder[a.player.role] || 5) -
-      (roleOrder[b.player.role] || 5)
+      (roleOrder[
+        a.player.role
+      ] || 5) -
+      (roleOrder[
+        b.player.role
+      ] || 5)
   );
 
+  // ===================================================
+  // BUILD RECOMMENDED XI
+  // ===================================================
+
   const recommendedXI =
-    selected.map((item, index) => ({
+    selected.map(
+      (item, index) => ({
 
+        selectionRank:
+          index + 1,
 
-      selectionRank: index + 1,
+        player:
+          item.player,
 
-      player: item.player,
+        role:
+          item.player.role,
 
-      role: item.player.role,
+        features:
+          item.features,
 
-      features: item.features,
+        prediction:
+          item.prediction,
 
-      prediction: item.prediction,
+      })
+    );
 
-    }));
+  // ===================================================
+  // TEAM METRICS
+  // ===================================================
 
   const averagePotential =
     recommendedXI.reduce(
       (sum, item) =>
         sum +
-        item.prediction.potentialScore,
+        Number(
+          item.prediction
+            .potentialScore || 0
+        ),
       0
-    ) / recommendedXI.length;
+    ) /
+    recommendedXI.length;
 
   const averageOverallImpact =
     recommendedXI.reduce(
       (sum, item) =>
         sum +
-        item.features.overallImpact,
+        Number(
+          item.features
+            .overallImpact || 0
+        ),
       0
-    ) / recommendedXI.length;
+    ) /
+    recommendedXI.length;
 
+  // ===================================================
+  // RETURN
+  // ===================================================
 
   return {
-
 
     format,
 
@@ -306,9 +521,7 @@ const buildRecommendedTeam = async ({ playerIds, format }) => {
 
     },
 
-
   };
-
 };
 
 module.exports = {

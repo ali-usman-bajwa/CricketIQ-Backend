@@ -1,9 +1,12 @@
-
 const { GoogleGenAI } = require("@google/genai");
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
+
+// =====================================================
+// GENERATE AI PLAYER COACH
+// =====================================================
 
 const generatePlayerCoach = async ({
   player,
@@ -12,97 +15,329 @@ const generatePlayerCoach = async ({
   performances,
 }) => {
   try {
+    // -------------------------------------------------
+    // Validate performances
+    // -------------------------------------------------
 
-    const chronologicalPerformances = [...performances].reverse();
+    if (!performances || performances.length === 0) {
+      throw new Error(
+        "No performance data available for coaching"
+      );
+    }
 
-    const recentPerformances = chronologicalPerformances
-      .slice(-5)
-      .map((performance, index) => {
-        const strikeRate = performance.balls > 0
-          ? Number(
-            ((performance.runs / performance.balls) * 100).toFixed(2)
-          )
-          : 0;
+    // -------------------------------------------------
+    // playerFeatureService returns newest -> oldest.
+    // Convert to oldest -> newest for trend analysis.
+    // -------------------------------------------------
 
-        const economy = performance.oversBowled > 0
-          ? Number(
-            (
-              performance.runsConceded /
+    const chronologicalPerformances = [
+      ...performances,
+    ].reverse();
+
+    // -------------------------------------------------
+    // Only use the latest 5 performances
+    // -------------------------------------------------
+
+    const recentPerformances =
+      chronologicalPerformances
+        .slice(-5)
+        .map((performance, index) => {
+          const runs =
+            Number(performance.runs) || 0;
+
+          const balls =
+            Number(performance.balls) || 0;
+
+          const wickets =
+            Number(performance.wickets) || 0;
+
+          const runsConceded =
+            Number(
+              performance.runsConceded
+            ) || 0;
+
+          const oversBowled =
+            Number(
               performance.oversBowled
-            ).toFixed(2)
-          )
-          : 0;
+            ) || 0;
 
-        return {
-          sequence: index + 1,
-          runs: performance.runs,
-          balls: performance.balls,
-          strikeRate,
-          fours: performance.fours,
-          sixes: performance.sixes,
-          wickets: performance.wickets,
-          runsConceded: performance.runsConceded,
-          oversBowled: performance.oversBowled,
-          economy,
-          dismissed: performance.dismissed,
-        };
-      });
+          const strikeRate =
+            balls > 0
+              ? Number(
+                  (
+                    (runs / balls) *
+                    100
+                  ).toFixed(2)
+                )
+              : 0;
 
-    let trendInformation = "INSUFFICIENT DATA";
+          const economy =
+            oversBowled > 0
+              ? Number(
+                  (
+                    runsConceded /
+                    oversBowled
+                  ).toFixed(2)
+                )
+              : 0;
+
+          return {
+            sequence: index + 1,
+
+            source:
+              performance.source ||
+              "UNKNOWN",
+
+            runs,
+            balls,
+            strikeRate,
+
+            fours:
+              Number(
+                performance.fours
+              ) || 0,
+
+            sixes:
+              Number(
+                performance.sixes
+              ) || 0,
+
+            wickets,
+
+            runsConceded,
+
+            oversBowled,
+
+            economy,
+
+            dismissed:
+              Boolean(
+                performance.dismissed
+              ),
+          };
+        });
+
+    // =================================================
+    // TREND ANALYSIS
+    // =================================================
+
+    let trendInformation = {
+      chronologicalOrder:
+        "OLDEST_TO_NEWEST",
+
+      sampleSize:
+        recentPerformances.length,
+
+      runTrend: "INSUFFICIENT_DATA",
+
+      strikeRateTrend:
+        "INSUFFICIENT_DATA",
+
+      wicketTrend:
+        "INSUFFICIENT_DATA",
+
+      economyTrend:
+        "INSUFFICIENT_DATA",
+    };
 
     if (recentPerformances.length >= 2) {
+      const first =
+        recentPerformances[0];
 
-      const first = recentPerformances[0];
-      const latest = recentPerformances[recentPerformances.length - 1];
+      const latest =
+        recentPerformances[
+          recentPerformances.length - 1
+        ];
 
-      const runDifference = latest.runs - first.runs;
-      const strikeRateDifference =
-        latest.strikeRate - first.strikeRate;
+      // ---------------------------------------------
+      // Runs
+      // ---------------------------------------------
+
+      const runDifference =
+        latest.runs -
+        first.runs;
 
       let runTrend = "STABLE";
 
       if (runDifference > 0) {
         runTrend = "IMPROVING";
-      } else if (runDifference < 0) {
+      } else if (
+        runDifference < 0
+      ) {
         runTrend = "DECLINING";
       }
 
-      let strikeRateTrend = "STABLE";
+      // ---------------------------------------------
+      // Strike Rate
+      // ---------------------------------------------
 
-      if (strikeRateDifference > 0) {
-        strikeRateTrend = "IMPROVING";
-      } else if (strikeRateDifference < 0) {
-        strikeRateTrend = "DECLINING";
+      const strikeRateDifference =
+        latest.strikeRate -
+        first.strikeRate;
+
+      let strikeRateTrend =
+        "STABLE";
+
+      if (
+        strikeRateDifference > 0
+      ) {
+        strikeRateTrend =
+          "IMPROVING";
+      } else if (
+        strikeRateDifference < 0
+      ) {
+        strikeRateTrend =
+          "DECLINING";
+      }
+
+      // ---------------------------------------------
+      // Wickets
+      // ---------------------------------------------
+
+      const wicketDifference =
+        latest.wickets -
+        first.wickets;
+
+      let wicketTrend = "STABLE";
+
+      if (wicketDifference > 0) {
+        wicketTrend =
+          "IMPROVING";
+      } else if (
+        wicketDifference < 0
+      ) {
+        wicketTrend =
+          "DECLINING";
+      }
+
+      // ---------------------------------------------
+      // Economy
+      //
+      // Lower economy can indicate improvement.
+      // ---------------------------------------------
+
+      const economyDifference =
+        latest.economy -
+        first.economy;
+
+      let economyTrend = "STABLE";
+
+      if (
+        latest.oversBowled > 0 &&
+        first.oversBowled > 0
+      ) {
+        if (
+          economyDifference < 0
+        ) {
+          economyTrend =
+            "IMPROVING";
+        } else if (
+          economyDifference > 0
+        ) {
+          economyTrend =
+            "DECLINING";
+        }
       }
 
       trendInformation = {
-        chronologicalOrder: "OLDEST_TO_NEWEST",
+        chronologicalOrder:
+          "OLDEST_TO_NEWEST",
+
+        sampleSize:
+          recentPerformances.length,
+
         runTrend,
+
         strikeRateTrend,
-        firstRuns: first.runs,
-        latestRuns: latest.runs,
-        firstStrikeRate: first.strikeRate,
-        latestStrikeRate: latest.strikeRate,
+
+        wicketTrend,
+
+        economyTrend,
+
+        firstRuns:
+          first.runs,
+
+        latestRuns:
+          latest.runs,
+
+        firstStrikeRate:
+          first.strikeRate,
+
+        latestStrikeRate:
+          latest.strikeRate,
+
+        firstWickets:
+          first.wickets,
+
+        latestWickets:
+          latest.wickets,
+
+        firstEconomy:
+          first.economy,
+
+        latestEconomy:
+          latest.economy,
       };
     }
+
+    // =================================================
+    // SAMPLE SIZE
+    // =================================================
+
+    let sampleSizeAssessment =
+      "LOW";
+
+    if (features.matches >= 10) {
+      sampleSizeAssessment =
+        "HIGH";
+    } else if (features.matches >= 5) {
+      sampleSizeAssessment =
+        "MEDIUM";
+    }
+
+    // =================================================
+    // SOURCE INFORMATION
+    // =================================================
+
+    const sourceCounts =
+      recentPerformances.reduce(
+        (counts, performance) => {
+          const source =
+            performance.source ||
+            "UNKNOWN";
+
+          counts[source] =
+            (counts[source] || 0) + 1;
+
+          return counts;
+        },
+        {}
+      );
+
+    // =================================================
+    // PROMPT
+    // =================================================
 
     const prompt = `
 You are CricketIQ, an AI-powered cricket performance coach.
 
 Your job is to provide practical and personalized coaching guidance
-based ONLY on the player's provided statistics and recent performances.
+based ONLY on the player's provided statistics, calculated features,
+recent performances, and calculated trends.
 
-==================================================
+You must NOT invent information.
+
+========================
 PLAYER
-==================================================
+========================
 
 Name: ${player.name}
 Role: ${player.role}
 Age: ${player.age}
 
-==================================================
-PLAYER FEATURES
-==================================================
+========================
+AGGREGATED PERFORMANCE
+========================
 
 Matches: ${features.matches}
 Total Runs: ${features.totalRuns}
@@ -120,139 +355,227 @@ Bowling Impact: ${features.bowlingImpact}
 Power Hitting: ${features.powerHitting}
 Overall Impact: ${features.overallImpact}
 
-==================================================
+========================
 ML PREDICTION
-==================================================
+========================
 
 Potential Score: ${prediction.potentialScore}
 Potential Level: ${prediction.potentialLevel}
 Prediction Class: ${prediction.prediction}
 
 IMPORTANT:
-The ML prediction is only a predictive signal.
-It must NOT be treated as proof of future performance.
 
-==================================================
+The ML prediction is ONLY a predictive signal.
+
+It is NOT proof that the player will succeed in the future.
+
+Do NOT use the ML potential score as the primary reason
+for recommending a training area.
+
+Coaching recommendations must primarily come from:
+- observed performance
+- recent performance
+- calculated trends
+- role-specific statistics
+
+========================
 RECENT PERFORMANCES
-==================================================
+========================
 
-The following performances are provided in:
+The performances below are ordered:
 
-OLDEST → NEWEST ORDER
+OLDEST → NEWEST
 
-Therefore:
+Sequence 1 = oldest available recent performance.
+Sequence ${recentPerformances.length} = newest performance.
 
-Sequence 1 = oldest performance
-Sequence ${recentPerformances.length} = most recent performance
+${JSON.stringify(
+  recentPerformances,
+  null,
+  2
+)}
 
-${JSON.stringify(recentPerformances, null, 2)}
+========================
+TREND INFORMATION
+========================
 
-==================================================
-CALCULATED TREND INFORMATION
-==================================================
+${JSON.stringify(
+  trendInformation,
+  null,
+  2
+)}
 
-${JSON.stringify(trendInformation, null, 2)}
+========================
+PERFORMANCE SOURCES
+========================
 
-IMPORTANT TREND RULE:
+${JSON.stringify(
+  sourceCounts,
+  null,
+  2
+)}
 
-You MUST interpret the performances chronologically.
+The source field means:
 
-For example:
+PLAYER:
+Performance data reported by the player.
 
-If runs are:
+COACH:
+Performance data reported by the coach.
 
-82 → 45 → 23
+UNIFIED:
+Performance data produced after the player and coach
+performance reports have been combined/verified by CricketIQ.
 
-the trend is DECLINING.
+The source is informational context only.
 
-It must NOT be described as improving.
+Do NOT assume that PLAYER data is inaccurate.
 
-If strike rates are:
+Do NOT assume that COACH data is automatically better
+unless the provided verification status/source indicates this.
 
-151.85 → 145.16 → 121.05
-
-the strike-rate trend is DECLINING.
-
-Never reverse the chronological direction.
-
-==================================================
+========================
 COACHING RULES
-==================================================
+========================
 
 1. Use ONLY the information provided.
 
-2. Never invent injuries, weaknesses, training history,
-fitness information, career history, opposition quality,
-bowling types, match conditions, or other facts.
+2. Never invent:
+   - injuries
+   - fitness problems
+   - training history
+   - career history
+   - opposition quality
+   - match conditions
+   - bowling type
+   - batting technique
+   - footwork
+   - shot selection
+   - bowling variations
+   - psychological issues
 
 3. Do not guarantee future performance.
 
 4. Consider the player's role.
 
 5. For a BATTER, focus primarily on:
-
-   - run scoring
+   - runs
    - batting average
    - strike rate
-   - boundary frequency
-   - consistency
+   - boundaries
    - recent scoring pattern
-   - recent strike-rate pattern
+   - consistency
+   - power hitting
 
 6. For a BOWLER, focus primarily on:
-
    - wickets
    - economy
    - runs conceded
    - bowling consistency
-   - recent performance
+   - recent bowling performance
 
-7. For an ALL-ROUNDER, consider both batting and bowling.
+7. For an ALL-ROUNDER, consider both batting
+   and bowling contributions.
 
-8. Analyze the recent performances in chronological order.
+8. Do not treat a role-irrelevant zero as automatically
+   being a weakness.
 
-9. Use the provided trend information as the authoritative
-reference for identifying improving, declining, or stable trends.
+9. Interpret recent performances chronologically.
 
-10. Do not claim a player is improving when the calculated
-trend information says DECLINING.
+10. The trend information provided above is calculated
+    from oldest to newest performance.
 
-11. Do not claim a player is declining when the calculated
-trend information says IMPROVING.
+11. Never reverse the trend.
 
-12. Do not call a calculated metric "poor" or "excellent"
-unless the provided data clearly supports that interpretation.
+For example:
 
-13. If the sample size is small, explicitly state that
-recommendations are preliminary.
+82 → 45 → 23
 
-14. Recommendations must be practical and directly connected
-to the player's available data.
+means:
 
-15. Training recommendations must be related to observable
-performance metrics.
+DECLINING
 
-16. Do not recommend medical treatment, supplements,
-medication, injury rehabilitation, or fitness interventions
-that require information not provided.
+not improving.
 
-17. Do not invent technical weaknesses such as footwork,
-shot selection, bowling variation, or technique unless the
-provided data supports them.
+12. If strike rate changes from:
 
-18. Do not treat the ML potential score as a coaching metric.
-The coaching recommendations should primarily come from
-performance data and recent trends.
+151.85 → 145.16 → 121.05
 
-==================================================
+the trend is:
+
+DECLINING.
+
+13. For economy:
+
+A lower economy compared with the earlier performance
+should be interpreted as improvement, assuming both
+performances contain valid bowling data.
+
+14. If there are only a few matches, explicitly state
+    that recommendations are preliminary.
+
+15. Training recommendations must be connected directly
+    to observable performance metrics.
+
+16. Do not recommend medical treatment, medication,
+    supplements, injury rehabilitation, or fitness
+    interventions that require information not provided.
+
+17. Do not claim a technical weakness unless the available
+    statistics provide reasonable evidence for discussing it.
+
+18. Do not describe a metric as "poor" or "excellent"
+    unless the provided information clearly supports it.
+
+19. Prefer specific statistical observations.
+
+20. The ML prediction should never override observed
+    performance trends.
+
+21. If the player's recent trend conflicts with the ML
+    prediction, explicitly acknowledge the difference
+    rather than forcing them to agree.
+
+22. Short-term goals should be measurable whenever possible.
+
+23. Recommendations should be practical for cricket training
+    and directly connected to the player's available data.
+
+24. Do not make recommendations that require information
+    outside the provided data.
+
+========================
+CONFIDENCE
+========================
+
+Use:
+
+LOW:
+Only a few matches are available.
+
+MEDIUM:
+A reasonable amount of performance history exists,
+but more matches would improve confidence.
+
+HIGH:
+Sufficient performance history exists to support
+a stronger assessment.
+
+Current data-based sample assessment:
+
+${sampleSizeAssessment}
+
+========================
 OUTPUT
-==================================================
+========================
 
 Return ONLY valid JSON.
 
-Do not include Markdown.
-Do not include code fences.
-Do not include additional text before or after the JSON.
+Do not return Markdown.
+
+Do not return code fences.
+
+Do not return explanatory text outside the JSON.
 
 Use exactly this structure:
 
@@ -281,57 +604,104 @@ Use exactly this structure:
   "confidence": "LOW"
 }
 
-The confidence field must be exactly:
+The confidence field MUST be exactly:
 
 LOW
 MEDIUM
 HIGH
 
-Use:
-
-LOW:
-Only a few matches are available.
-
-MEDIUM:
-A reasonable amount of performance history exists,
-but more matches would improve confidence.
-
-HIGH:
-Sufficient performance history exists to support
-a stronger assessment.
-
 Remember:
 
-- Be evidence-based.
-- Be practical.
-- Be role-specific.
-- Respect chronological order.
-- Use the calculated trend information.
+- Evidence-based.
+- Practical.
+- Role-specific.
+- Chronological.
+- Data-driven.
 - Do not invent information.
 - Do not exaggerate.
 - Do not guarantee future performance.
 - Do not confuse ML prediction with coaching evidence.
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-    });
+    // =================================================
+    // GEMINI REQUEST
+    // =================================================
 
-    const text = response.text.trim();
+    const response =
+      await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+      });
 
-    const cleanedText = text
+    // =================================================
+    // CLEAN GEMINI RESPONSE
+    // =================================================
+
+    let text =
+      response.text.trim();
+
+    // Remove accidental Markdown fences.
+    text = text
       .replace(/^```json\s*/i, "")
       .replace(/^```\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
 
-    return JSON.parse(cleanedText);
+    // =================================================
+    // PARSE JSON
+    // =================================================
+
+    const coaching =
+      JSON.parse(text);
+
+    // =================================================
+    // BASIC OUTPUT VALIDATION
+    // =================================================
+
+    const requiredFields = [
+      "coachSummary",
+      "priorityArea",
+      "strengthToMaintain",
+      "developmentAreas",
+      "trainingFocus",
+      "matchPreparation",
+      "shortTermGoals",
+      "dataLimitations",
+      "confidence",
+    ];
+
+    for (const field of requiredFields) {
+      if (
+        coaching[field] === undefined
+      ) {
+        throw new Error(
+          `AI Coach response missing field: ${field}`
+        );
+      }
+    }
+
+    if (
+      ![
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+      ].includes(
+        coaching.confidence
+      )
+    ) {
+      throw new Error(
+        "Invalid AI Coach confidence value"
+      );
+    }
+
+    return coaching;
 
   } catch (error) {
+
     console.error(
       "Gemini AI Coach Service Error:",
-      error.response?.data || error.message
+      error.response?.data ||
+        error.message
     );
 
     throw new Error(

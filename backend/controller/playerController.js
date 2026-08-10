@@ -1,83 +1,93 @@
 const Player = require("../models/Player");
 
+
+// =====================================================
+// CREATE PLAYER
+// =====================================================
+// Normally Player registration happens through auth/register.
+// Keep this for Admin only.
+
 const createPlayer = async (req, res) => {
-
   try {
-
     const player = await Player.create(req.body);
-    res.status(201).json({
+
+    return res.status(201).json({
       success: true,
       message: "Player created successfully",
       data: player,
     });
 
   } catch (error) {
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
+
+// =====================================================
+// GET ALL PLAYERS
+// =====================================================
+
 const getPlayers = async (req, res) => {
-
   try {
+    const players = await Player.find()
+      .populate("user", "name email role");
 
-    const players = await Player.find();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: players.length,
       data: players,
     });
 
   } catch (error) {
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
-const getPlayer = async (req, res, next) => {
+
+// =====================================================
+// GET SINGLE PLAYER
+// =====================================================
+
+const getPlayer = async (req, res) => {
   try {
-    const player = await Player.findById(req.params.id);
+    const player = await Player.findById(req.params.id)
+      .populate("user", "name email role");
 
     if (!player) {
-
       return res.status(404).json({
         success: false,
         message: "Player not found",
       });
-      
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: player,
     });
 
   } catch (error) {
-
-    next(error);
-
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
+
+// =====================================================
+// UPDATE PLAYER
+// =====================================================
+
 const updatePlayer = async (req, res) => {
-
   try {
-
-    const player = await Player.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
+    const player = await Player.findById(
+      req.params.id
     );
 
     if (!player) {
@@ -87,22 +97,66 @@ const updatePlayer = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+
+    // ---------------------------------------------
+    // Player can update ONLY his own profile
+    // ---------------------------------------------
+
+    if (req.user.role === "Player") {
+
+      if (
+        player.user.toString() !==
+        req.user.id.toString()
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You can only update your own profile",
+        });
+      }
+    }
+
+
+    // ---------------------------------------------
+    // Prevent changing ownership
+    // ---------------------------------------------
+
+    delete req.body.user;
+
+
+    // ---------------------------------------------
+    // Update
+    // ---------------------------------------------
+
+    Object.assign(player, req.body);
+
+    await player.save();
+
+    return res.status(200).json({
       success: true,
       message: "Player updated successfully",
       data: player,
     });
+
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
 
+
+// =====================================================
+// DELETE PLAYER
+// =====================================================
+
 const deletePlayer = async (req, res) => {
   try {
-    const player = await Player.findByIdAndDelete(req.params.id);
+    const player =
+      await Player.findByIdAndDelete(
+        req.params.id
+      );
 
     if (!player) {
       return res.status(404).json({
@@ -111,17 +165,19 @@ const deletePlayer = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Player deleted successfully",
     });
+
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
+
 
 module.exports = {
   createPlayer,

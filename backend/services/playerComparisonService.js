@@ -6,63 +6,144 @@ const {
   predictPlayerPotential,
 } = require("./mlService");
 
+// =====================================================
+// COMPARE PLAYERS
+// =====================================================
 
 const comparePlayers = async (playerIds) => {
+  // -------------------------------------------------
+  // Validate input
+  // -------------------------------------------------
 
-  if (!Array.isArray(playerIds) || playerIds.length < 2) {
-    throw new Error("At least 2 player IDs are required");
+  if (!Array.isArray(playerIds)) {
+    throw new Error(
+      "playerIds must be an array"
+    );
+  }
+
+  if (playerIds.length < 2) {
+    throw new Error(
+      "At least 2 player IDs are required"
+    );
   }
 
   if (playerIds.length > 5) {
-    throw new Error("Maximum 5 players can be compared");
+    throw new Error(
+      "Maximum 5 players can be compared"
+    );
   }
 
-  const uniquePlayerIds = [...new Set(playerIds)];
+  // -------------------------------------------------
+  // Prevent duplicate players
+  // -------------------------------------------------
 
-  if (uniquePlayerIds.length !== playerIds.length) {
-    throw new Error("Duplicate player IDs are not allowed");
+  const uniquePlayerIds = [
+    ...new Set(
+      playerIds.map((id) => id.toString())
+    ),
+  ];
+
+  if (
+    uniquePlayerIds.length !==
+    playerIds.length
+  ) {
+    throw new Error(
+      "Duplicate player IDs are not allowed"
+    );
   }
+
+  // =================================================
+  // BUILD PLAYER COMPARISON
+  // =================================================
 
   const comparison = [];
 
   for (const playerId of uniquePlayerIds) {
-    const result = await buildPlayerFeatures(playerId);
 
+    // -------------------------------------------------
+    // Build features
+    // -------------------------------------------------
 
-    if (!result || !result.player) {
+    const result =
+      await buildPlayerFeatures(
+        playerId
+      );
+
+    if (
+      !result ||
+      !result.player ||
+      !result.features
+    ) {
       throw new Error(
         `Unable to build features for player ${playerId}`
       );
     }
 
-    const prediction = await predictPlayerPotential(
-      result.features
-    );
+    // -------------------------------------------------
+    // Generate ML prediction
+    // -------------------------------------------------
+
+    const prediction =
+      await predictPlayerPotential(
+        result.features
+      );
+
+    if (!prediction) {
+      throw new Error(
+        `Unable to generate prediction for player ${playerId}`
+      );
+    }
+
+    // -------------------------------------------------
+    // Store comparison data
+    // -------------------------------------------------
 
     comparison.push({
       player: result.player,
-      features: result.features,
+
+      features:
+        result.features,
+
+      statistics:
+        result.statistics || null,
+
       prediction,
     });
-
-
   }
+
+  // =================================================
+  // SORT BY ML POTENTIAL SCORE
+  // =================================================
 
   comparison.sort(
     (a, b) =>
-      b.prediction.potentialScore -
-      a.prediction.potentialScore
+      Number(
+        b.prediction.potentialScore
+      ) -
+      Number(
+        a.prediction.potentialScore
+      )
   );
 
-  const rankedComparison = comparison.map(
-    (playerData, index) => ({
-      rank: index + 1,
-      ...playerData,
-    })
-  );
+  // =================================================
+  // ASSIGN RANK
+  // =================================================
+
+  const rankedComparison =
+    comparison.map(
+      (playerData, index) => ({
+        rank: index + 1,
+
+        ...playerData,
+      })
+    );
 
   return rankedComparison;
 };
+
+// =====================================================
+// EXPORT
+// =====================================================
 
 module.exports = {
   comparePlayers,

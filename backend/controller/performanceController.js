@@ -1,14 +1,29 @@
+const mongoose = require("mongoose");
+
 const Performance = require("../models/Performance");
 const Player = require("../models/Player");
 const Match = require("../models/Match");
+const Team = require("../models/Team");
+
+const {
+  calculateDerivedStats,
+  buildUnifiedPerformance,
+} = require("../services/performanceService");
+
+// =====================================================
+// POPULATE HELPER
+// =====================================================
 
 const populatePerformance = (query) => {
-  
   return query
-    .populate("player", "name role team")
+    .populate(
+      "player",
+      "name role team country"
+    )
     .populate({
       path: "match",
-      select: "format date venue teamA teamB status winner",
+      select:
+        "format date venue teamA teamB status winner",
       populate: [
         {
           path: "teamA",
@@ -23,36 +38,56 @@ const populatePerformance = (query) => {
           select: "name shortName",
         },
       ],
-    });
+    })
+    .populate(
+      "verifiedBy",
+      "name email role"
+    );
 };
 
-const createPerformance = async (req, res) => {
+// =====================================================
+// CREATE / SUBMIT PERFORMANCE
+// =====================================================
 
+const createPerformance = async (
+  req,
+  res
+) => {
   try {
     const {
       player,
       match,
-      runs = 0,
-      balls = 0,
-      fours = 0,
-      sixes = 0,
-      wickets = 0,
-      runsConceded = 0,
-      oversBowled = 0,
-      dismissed = false,
+      playerReport,
+      coachReport,
+      coachEvaluation,
     } = req.body;
 
+    // -------------------------------------------------
+    // Validate required IDs
+    // -------------------------------------------------
 
-    const existingPlayer =
-      await Player.findById(player);
-
-    if (!existingPlayer) {
-      return res.status(404).json({
+    if (!player || !match) {
+      return res.status(400).json({
         success: false,
-        message: "Player not found",
+        message:
+          "Player and match are required",
       });
     }
 
+    if (
+      !mongoose.Types.ObjectId.isValid(player) ||
+      !mongoose.Types.ObjectId.isValid(match)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid player or match ID",
+      });
+    }
+
+    // -------------------------------------------------
+    // Check match
+    // -------------------------------------------------
 
     const existingMatch =
       await Match.findById(match);
@@ -64,7 +99,9 @@ const createPerformance = async (req, res) => {
       });
     }
 
-    if (existingMatch.status !== "completed") {
+    if (
+      existingMatch.status !== "completed"
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -72,82 +109,645 @@ const createPerformance = async (req, res) => {
       });
     }
 
-    const existingPerformance =
+    // -------------------------------------------------
+    // Check player
+    // -------------------------------------------------
+
+    const existingPlayer =
+      await Player.findById(player);
+
+    if (!existingPlayer) {
+      return res.status(404).json({
+        success: false,
+        message: "Player not found",
+      });
+    }
+
+    // =================================================
+    // COACH AUTHORIZATION
+    // =================================================
+
+    if (req.user.role === "Coach") {
+      // -----------------------------------------------
+      // Find team managed by this coach
+      // -----------------------------------------------
+
+      const coachTeam =
+        await Team.findOne({
+          coach: req.user.id,
+        });
+
+      if (!coachTeam) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You are not assigned as the coach of any team",
+        });
+      }
+
+      // -----------------------------------------------
+      // Player must belong to coach's team
+      // -----------------------------------------------
+
+      const playerBelongsToTeam =
+        coachTeam.players.some(
+          (playerId) =>
+            playerId.toString() ===
+            existingPlayer._id.toString()
+        );
+
+      if (!playerBelongsToTeam) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You are not authorized to submit performance for this player",
+        });
+      }
+
+      // -----------------------------------------------
+      // Coach's team must participate in match
+      // -----------------------------------------------
+
+      const teamParticipated =
+        existingMatch.teamA.toString() ===
+          coachTeam._id.toString() ||
+        existingMatch.teamB.toString() ===
+          coachTeam._id.toString();
+
+      if (!teamParticipated) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Your team did not participate in this match",
+        });
+      }
+    }
+
+    // =================================================
+    // PLAYER AUTHORIZATION
+    // =================================================
+
+    if (req.user.role === "Player") {
+      const playerProfile =
+        await Player.findOne({
+          user: req.user.id,
+        });
+
+      if (!playerProfile) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Player profile not found",
+        });
+      }
+
+      // -----------------------------------------------
+      // Player can only submit own performance
+      // -----------------------------------------------
+
+      if (
+        playerProfile._id.toString() !==
+        player.toString()
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You can only submit your own performance",
+        });
+      }
+
+      // -----------------------------------------------
+      // Player must have participated in match
+      // -----------------------------------------------
+
+      const playerTeam =
+        await Team.findOne({
+          players: playerProfile._id,
+        });
+
+      if (!playerTeam) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Player is not assigned to a team",
+        });
+      }
+
+      const playerTeamParticipated =
+        existingMatch.teamA.toString() ===
+          playerTeam._id.toString() ||
+        existingMatch.teamB.toString() ===
+          playerTeam._id.toString();
+
+      if (!playerTeamParticipated) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Your team did not participate in this match",
+        });
+      }
+    }
+
+    // =================================================
+    // FIND EXISTING PERFORMANCE
+    // =================================================
+
+    let performance =
       await Performance.findOne({
         player,
         match,
       });
 
-    if (existingPerformance) {
-      return res.status(400).json({
-        success: false,
+    // =================================================
+    // PLAYER SUBMISSION
+    // =================================================
+
+    if (req.user.role === "Player") {
+      // -----------------------------------------------
+      // Player report required
+      // -----------------------------------------------
+
+      if (!playerReport) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Player performance data is required",
+        });
+      }
+
+      // -----------------------------------------------
+      // Prevent duplicate submission
+      // -----------------------------------------------
+
+      if (
+        performance &&
+        performance.playerReport
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Player performance has already been submitted for this match",
+        });
+      }
+
+      // -----------------------------------------------
+      // Calculate derived statistics
+      // -----------------------------------------------
+
+      const calculatedPlayerReport =
+        calculateDerivedStats(
+          playerReport
+        );
+
+      // -----------------------------------------------
+      // Create performance
+      // -----------------------------------------------
+
+      if (!performance) {
+        performance =
+          await Performance.create({
+            player,
+            match,
+
+            playerReport:
+              calculatedPlayerReport,
+
+            verificationStatus:
+              "PLAYER_REPORTED",
+          });
+      }
+
+      // -----------------------------------------------
+      // Existing coach report
+      // -----------------------------------------------
+
+      else {
+        performance.playerReport =
+          calculatedPlayerReport;
+
+        // ---------------------------------------------
+        // Coach report already exists
+        // ---------------------------------------------
+
+        if (performance.coachReport) {
+          const unified =
+            buildUnifiedPerformance(
+              performance
+            );
+
+          performance.unifiedPerformance =
+            unified.data;
+
+          performance.verificationStatus =
+            "COACH_VERIFIED";
+
+          performance.verifiedAt =
+            performance.verifiedAt ||
+            new Date();
+
+          // Keep existing coach as verifier.
+        }
+
+        // ---------------------------------------------
+        // Coach report doesn't exist
+        // ---------------------------------------------
+
+        else {
+          performance.verificationStatus =
+            "PLAYER_REPORTED";
+
+          performance.unifiedPerformance =
+            null;
+
+          performance.verifiedAt =
+            null;
+
+          performance.verifiedBy =
+            null;
+        }
+
+        await performance.save();
+      }
+
+      const populatedPerformance =
+        await populatePerformance(
+          Performance.findById(
+            performance._id
+          )
+        );
+
+      return res.status(201).json({
+        success: true,
         message:
-          "Performance already recorded for this player in this match",
+          "Player performance submitted successfully",
+        data: populatedPerformance,
       });
     }
 
-    const strikeRate =
-      balls > 0
-        ? (runs / balls) * 100
-        : 0;
+    // =================================================
+    // COACH SUBMISSION
+    // =================================================
 
-    const economy =
-      oversBowled > 0
-        ? runsConceded / oversBowled
-        : 0;
+    if (req.user.role === "Coach") {
+      // -----------------------------------------------
+      // Coach report required
+      // -----------------------------------------------
 
-    const performance =
-      await Performance.create({
-        player,
-        match,
-        runs,
-        balls,
-        fours,
-        sixes,
-        wickets,
-        runsConceded,
-        oversBowled,
-        strikeRate,
-        economy,
-        dismissed,
+      if (!coachReport) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Coach performance data is required",
+        });
+      }
+
+      // -----------------------------------------------
+      // Prevent duplicate coach submission
+      // -----------------------------------------------
+
+      if (
+        performance &&
+        performance.coachReport
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Coach performance has already been submitted for this match",
+        });
+      }
+
+      // -----------------------------------------------
+      // Calculate coach statistics
+      // -----------------------------------------------
+
+      const calculatedCoachReport =
+        calculateDerivedStats(
+          coachReport
+        );
+
+      // -----------------------------------------------
+      // Coach submits first
+      // -----------------------------------------------
+
+      if (!performance) {
+        performance =
+          await Performance.create({
+            player,
+            match,
+
+            coachReport:
+              calculatedCoachReport,
+
+            coachEvaluation:
+              coachEvaluation || null,
+
+            verificationStatus:
+              "COACH_REPORTED",
+
+            verifiedBy:
+              null,
+
+            verifiedAt:
+              null,
+          });
+      }
+
+      // -----------------------------------------------
+      // Player report already exists
+      // -----------------------------------------------
+
+      else {
+        performance.coachReport =
+          calculatedCoachReport;
+
+        performance.coachEvaluation =
+          coachEvaluation || null;
+
+        // ---------------------------------------------
+        // Both reports now exist
+        // ---------------------------------------------
+
+        if (
+          performance.playerReport
+        ) {
+          const unified =
+            buildUnifiedPerformance(
+              performance
+            );
+
+          performance.unifiedPerformance =
+            unified.data;
+
+          performance.verificationStatus =
+            "COACH_VERIFIED";
+
+          performance.verifiedBy =
+            req.user.id;
+
+          performance.verifiedAt =
+            new Date();
+        }
+
+        // ---------------------------------------------
+        // Only coach report exists
+        // ---------------------------------------------
+
+        else {
+          performance.unifiedPerformance =
+            null;
+
+          performance.verificationStatus =
+            "COACH_REPORTED";
+
+          performance.verifiedBy =
+            null;
+
+          performance.verifiedAt =
+            null;
+        }
+
+        await performance.save();
+      }
+
+      const populatedPerformance =
+        await populatePerformance(
+          Performance.findById(
+            performance._id
+          )
+        );
+
+      return res.status(201).json({
+        success: true,
+        message:
+          "Coach performance submitted successfully",
+        data: populatedPerformance,
       });
+    }
 
+    // =================================================
+    // ADMIN SUBMISSION
+    // =================================================
 
-    const populatedPerformance =
-      await populatePerformance(
-        Performance.findById(
-          performance._id
-        )
-      );
+    if (req.user.role === "Admin") {
+      if (
+        !playerReport &&
+        !coachReport
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Performance data is required",
+        });
+      }
 
+      // -----------------------------------------------
+      // Create new performance
+      // -----------------------------------------------
 
-    res.status(201).json({
-      success: true,
+      if (!performance) {
+        const calculatedPlayerReport =
+          playerReport
+            ? calculateDerivedStats(
+                playerReport
+              )
+            : null;
+
+        const calculatedCoachReport =
+          coachReport
+            ? calculateDerivedStats(
+                coachReport
+              )
+            : null;
+
+        const hasBothReports =
+          calculatedPlayerReport &&
+          calculatedCoachReport;
+
+        performance =
+          await Performance.create({
+            player,
+            match,
+
+            playerReport:
+              calculatedPlayerReport,
+
+            coachReport:
+              calculatedCoachReport,
+
+            coachEvaluation:
+              coachEvaluation || null,
+
+            verificationStatus:
+              hasBothReports
+                ? "COACH_VERIFIED"
+                : coachReport
+                ? "COACH_REPORTED"
+                : "PLAYER_REPORTED",
+
+            unifiedPerformance:
+              hasBothReports
+                ? calculateDerivedStats(
+                    calculatedCoachReport
+                  )
+                : null,
+
+            verifiedBy:
+              hasBothReports
+                ? req.user.id
+                : null,
+
+            verifiedAt:
+              hasBothReports
+                ? new Date()
+                : null,
+          });
+      }
+
+      // -----------------------------------------------
+      // Update existing performance
+      // -----------------------------------------------
+
+      else {
+        if (playerReport) {
+          performance.playerReport =
+            calculateDerivedStats(
+              playerReport
+            );
+        }
+
+        if (coachReport) {
+          performance.coachReport =
+            calculateDerivedStats(
+              coachReport
+            );
+
+          performance.coachEvaluation =
+            coachEvaluation || null;
+        }
+
+        // ---------------------------------------------
+        // Both reports exist
+        // ---------------------------------------------
+
+        if (
+          performance.playerReport &&
+          performance.coachReport
+        ) {
+          const unified =
+            buildUnifiedPerformance(
+              performance
+            );
+
+          performance.unifiedPerformance =
+            unified.data;
+
+          performance.verificationStatus =
+            "COACH_VERIFIED";
+
+          performance.verifiedBy =
+            req.user.id;
+
+          performance.verifiedAt =
+            new Date();
+        }
+
+        // ---------------------------------------------
+        // Only coach report exists
+        // ---------------------------------------------
+
+        else if (
+          performance.coachReport
+        ) {
+          performance.verificationStatus =
+            "COACH_REPORTED";
+
+          performance.unifiedPerformance =
+            null;
+
+          performance.verifiedBy =
+            null;
+
+          performance.verifiedAt =
+            null;
+        }
+
+        // ---------------------------------------------
+        // Only player report exists
+        // ---------------------------------------------
+
+        else {
+          performance.verificationStatus =
+            "PLAYER_REPORTED";
+
+          performance.unifiedPerformance =
+            null;
+
+          performance.verifiedBy =
+            null;
+
+          performance.verifiedAt =
+            null;
+        }
+
+        await performance.save();
+      }
+
+      const populatedPerformance =
+        await populatePerformance(
+          Performance.findById(
+            performance._id
+          )
+        );
+
+      return res.status(201).json({
+        success: true,
+        message:
+          "Performance updated successfully",
+        data: populatedPerformance,
+      });
+    }
+
+    // =================================================
+    // UNSUPPORTED ROLE
+    // =================================================
+
+    return res.status(403).json({
+      success: false,
       message:
-        "Performance recorded successfully",
-      data: populatedPerformance,
+        "You are not authorized to submit performance",
     });
-
   } catch (error) {
+    console.error(
+      "Create Performance Error:",
+      error
+    );
 
-    if (error.code === 11000) {
+    if (
+      error.name ===
+      "ValidationError"
+    ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Performance already recorded for this player in this match",
+        message: error.message,
       });
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
 
-const getPerformances = async (req, res) => {
-  try {
+// =====================================================
+// GET ALL PERFORMANCES
+// =====================================================
 
+const getPerformances = async (
+  req,
+  res
+) => {
+  try {
     const performances =
       await populatePerformance(
         Performance.find().sort({
@@ -155,25 +755,46 @@ const getPerformances = async (req, res) => {
         })
       );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: performances.length,
       data: performances,
     });
-
   } catch (error) {
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
 
-const getPlayerPerformances = async (req,res) => {
-  try {
+// =====================================================
+// GET PLAYER PERFORMANCES
+// =====================================================
 
-    const player = await Player.findById(req.params.playerId);
+const getPlayerPerformances = async (
+  req,
+  res
+) => {
+  try {
+    const { playerId } =
+      req.params;
+
+    if (
+      !mongoose.Types.ObjectId.isValid(
+        playerId
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid player ID",
+      });
+    }
+
+    const player =
+      await Player.findById(
+        playerId
+      );
 
     if (!player) {
       return res.status(404).json({
@@ -182,205 +803,304 @@ const getPlayerPerformances = async (req,res) => {
       });
     }
 
+    // =================================================
+    // PLAYER AUTHORIZATION
+    // =================================================
+
+    if (req.user.role === "Player") {
+      const playerProfile =
+        await Player.findOne({
+          user: req.user.id,
+        });
+
+      if (!playerProfile) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Player profile not found",
+        });
+      }
+
+      if (
+        playerProfile._id.toString() !==
+        playerId.toString()
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You can only view your own performances",
+        });
+      }
+    }
+
+    // =================================================
+    // COACH AUTHORIZATION
+    // =================================================
+
+    if (req.user.role === "Coach") {
+      const coachTeam =
+        await Team.findOne({
+          coach: req.user.id,
+        });
+
+      if (!coachTeam) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You are not assigned to any team",
+        });
+      }
+
+      const playerBelongsToTeam =
+        coachTeam.players.some(
+          (id) =>
+            id.toString() ===
+            playerId.toString()
+        );
+
+      if (!playerBelongsToTeam) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You can only view performances of players in your team",
+        });
+      }
+    }
+
+    // =================================================
+    // GET PERFORMANCES
+    // =================================================
 
     const performances =
       await populatePerformance(
         Performance.find({
-          player: req.params.playerId,
+          player: playerId,
         }).sort({
           createdAt: -1,
         })
       );
 
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: performances.length,
       data: performances,
     });
-
   } catch (error) {
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
 
-const getPerformance = async (req,res) => {
+// =====================================================
+// GET SINGLE PERFORMANCE
+// =====================================================
+
+const getPerformance = async (
+  req,
+  res
+) => {
   try {
+    const { id } = req.params;
+
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid performance ID",
+      });
+    }
 
     const performance =
+      await Performance.findById(id);
+
+    if (!performance) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Performance not found",
+      });
+    }
+
+    // =================================================
+    // PLAYER AUTHORIZATION
+    // =================================================
+
+    if (req.user.role === "Player") {
+      const playerProfile =
+        await Player.findOne({
+          user: req.user.id,
+        });
+
+      if (!playerProfile) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Player profile not found",
+        });
+      }
+
+      if (
+        playerProfile._id.toString() !==
+        performance.player.toString()
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You can only view your own performance",
+        });
+      }
+    }
+
+    // =================================================
+    // COACH AUTHORIZATION
+    // =================================================
+
+    if (req.user.role === "Coach") {
+      const coachTeam =
+        await Team.findOne({
+          coach: req.user.id,
+        });
+
+      if (!coachTeam) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You are not assigned to any team",
+        });
+      }
+
+      const playerBelongsToTeam =
+        coachTeam.players.some(
+          (id) =>
+            id.toString() ===
+            performance.player.toString()
+        );
+
+      if (!playerBelongsToTeam) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You can only view performances of players in your team",
+        });
+      }
+    }
+
+    // =================================================
+    // POPULATE
+    // =================================================
+
+    const populatedPerformance =
       await populatePerformance(
-        Performance.findById(
-          req.params.id
-        )
+        Performance.findById(id)
       );
 
-    if (!performance) {
-      return res.status(404).json({
-        success: false,
-        message: "Performance not found",
-      });
-    }
-
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: performance,
+      data: populatedPerformance,
     });
-
   } catch (error) {
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
 
-const updatePerformance = async (req,res) => {
+// =====================================================
+// DELETE PERFORMANCE
+// =====================================================
+
+const deletePerformance = async (
+  req,
+  res
+) => {
   try {
+    const { id } = req.params;
+
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid performance ID",
+      });
+    }
 
     const performance =
-      await Performance.findById(
-        req.params.id
-      );
+      await Performance.findById(id);
 
     if (!performance) {
       return res.status(404).json({
         success: false,
-        message: "Performance not found",
+        message:
+          "Performance not found",
       });
     }
 
+    // =================================================
+    // COACH CAN DELETE ONLY THEIR TEAM'S PERFORMANCE
+    // =================================================
 
-    const {
-      runs,
-      balls,
-      fours,
-      sixes,
-      wickets,
-      runsConceded,
-      oversBowled,
-      dismissed,
-    } = req.body;
+    if (req.user.role === "Coach") {
+      const coachTeam =
+        await Team.findOne({
+          coach: req.user.id,
+        });
 
+      if (!coachTeam) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You are not assigned to any team",
+        });
+      }
 
-    if (runs !== undefined) {
-      performance.runs = runs;
+      const playerBelongsToTeam =
+        coachTeam.players.some(
+          (id) =>
+            id.toString() ===
+            performance.player.toString()
+        );
+
+      if (!playerBelongsToTeam) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You can only delete performances of players in your team",
+        });
+      }
     }
 
-    if (balls !== undefined) {
-      performance.balls = balls;
-    }
+    await Performance.findByIdAndDelete(
+      id
+    );
 
-    if (fours !== undefined) {
-      performance.fours = fours;
-    }
-
-    if (sixes !== undefined) {
-      performance.sixes = sixes;
-    }
-
-    if (wickets !== undefined) {
-      performance.wickets = wickets;
-    }
-
-    if (runsConceded !== undefined) {
-      performance.runsConceded =
-        runsConceded;
-    }
-
-    if (oversBowled !== undefined) {
-      performance.oversBowled =
-        oversBowled;
-    }
-
-    if (dismissed !== undefined) {
-      performance.dismissed =
-        dismissed;
-    }
-
-    performance.strikeRate =
-      performance.balls > 0
-        ? (performance.runs /
-            performance.balls) *
-          100
-        : 0;
-
-
-    performance.economy =
-      performance.oversBowled > 0
-        ? performance.runsConceded /
-          performance.oversBowled
-        : 0;
-
-
-    await performance.save();
-
-
-    const updatedPerformance =
-      await populatePerformance(
-        Performance.findById(
-          performance._id
-        )
-      );
-
-
-    res.status(200).json({
-      success: true,
-      message:
-        "Performance updated successfully",
-      data: updatedPerformance,
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-const deletePerformance = async (req,res) => {
-  try {
-
-    const performance =
-      await Performance.findByIdAndDelete(
-        req.params.id
-      );
-
-    if (!performance) {
-      return res.status(404).json({
-        success: false,
-        message: "Performance not found",
-      });
-    }
-
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message:
         "Performance deleted successfully",
     });
-
   } catch (error) {
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
+
+// =====================================================
+// EXPORTS
+// =====================================================
 
 module.exports = {
   createPerformance,
   getPerformances,
   getPlayerPerformances,
   getPerformance,
-  updatePerformance,
   deletePerformance,
 };

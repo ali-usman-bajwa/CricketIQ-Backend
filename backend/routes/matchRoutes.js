@@ -6,23 +6,51 @@ const {
   getMatch,
   updateMatch,
   deleteMatch,
-  completeMatch,
 } = require("../controller/matchController");
 
 const protect = require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-router.post("/", protect, createMatch);
+// Create match
+router.post(
+  "/",
+  protect,
+  authorize("Coach", "Admin"),
+  createMatch
+);
 
-router.get("/", protect, getMatches);
+// Get matches
+router.get(
+  "/",
+  protect,
+  authorize("Player", "Coach", "Admin"),
+  getMatches
+);
 
-router.get("/:id", protect, getMatch);
+// Get single match
+router.get(
+  "/:id",
+  protect,
+  authorize("Player", "Coach", "Admin"),
+  getMatch
+);
 
-router.put("/:id", protect, updateMatch);
+// Update match
+router.put(
+  "/:id",
+  protect,
+  authorize("Coach", "Admin"),
+  updateMatch
+);
 
-router.delete("/:id", protect, deleteMatch);
-
-router.patch("/:id/complete", protect, completeMatch);
+// Delete match
+router.delete(
+  "/:id",
+  protect,
+  authorize("Admin"),
+  deleteMatch
+);
 
 module.exports = router;

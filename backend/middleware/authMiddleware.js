@@ -2,7 +2,8 @@ const jwt = require("jsonwebtoken");
 
 const protect = (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader =
+      req.headers.authorization;
 
     if (!authHeader) {
       return res.status(401).json({
@@ -11,12 +12,14 @@ const protect = (req, res, next) => {
       });
     }
 
-    const token = authHeader.split(" ")[1];
+    const [scheme, token] =
+      authHeader.split(" ");
 
-    if (!token) {
+    if (scheme !== "Bearer" || !token) {
       return res.status(401).json({
         success: false,
-        message: "Invalid authorization format",
+        message:
+          "Invalid authorization format",
       });
     }
 
@@ -29,7 +32,6 @@ const protect = (req, res, next) => {
 
     next();
   } catch (error) {
-    
     return res.status(401).json({
       success: false,
       message: "Invalid or expired token",

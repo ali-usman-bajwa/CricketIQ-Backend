@@ -1,4 +1,3 @@
-
 const { GoogleGenAI } = require("@google/genai");
 
 const ai = new GoogleGenAI({
@@ -9,27 +8,151 @@ const generatePlayerAnalysis = async ({
   player,
   features,
   prediction,
+  performances = [],
+  performanceSource = "PLAYER_REPORTED",
 }) => {
   try {
+    const sourceDescription =
+      performanceSource === "COACH_VERIFIED"
+        ? "COACH_VERIFIED / UNIFIED PERFORMANCE"
+        : "PLAYER_REPORTED PERFORMANCE";
+
+    const chronologicalPerformances = [...performances]
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt) - new Date(b.createdAt)
+      )
+      .slice(-5);
+
+    const recentPerformances =
+      chronologicalPerformances.map(
+        (performance, index) => ({
+          sequence: index + 1,
+
+          runs: performance.runs ?? 0,
+          balls: performance.balls ?? 0,
+
+          strikeRate:
+            performance.balls > 0
+              ? Number(
+                  (
+                    (performance.runs /
+                      performance.balls) *
+                    100
+                  ).toFixed(2)
+                )
+              : 0,
+
+          fours: performance.fours ?? 0,
+          sixes: performance.sixes ?? 0,
+
+          wickets: performance.wickets ?? 0,
+          runsConceded:
+            performance.runsConceded ?? 0,
+
+          oversBowled:
+            performance.oversBowled ?? 0,
+
+          economy:
+            performance.oversBowled > 0
+              ? Number(
+                  (
+                    performance.runsConceded /
+                    performance.oversBowled
+                  ).toFixed(2)
+                )
+              : 0,
+
+          dismissed:
+            performance.dismissed ?? false,
+
+          createdAt:
+            performance.createdAt,
+        })
+      );
+
+    let trendInformation =
+      "INSUFFICIENT DATA";
+
+    if (recentPerformances.length >= 2) {
+      const first = recentPerformances[0];
+
+      const latest =
+        recentPerformances[
+          recentPerformances.length - 1
+        ];
+
+      const runDifference =
+        latest.runs - first.runs;
+
+      const strikeRateDifference =
+        latest.strikeRate -
+        first.strikeRate;
+
+      let runTrend = "STABLE";
+
+      if (runDifference > 0) {
+        runTrend = "IMPROVING";
+      } else if (runDifference < 0) {
+        runTrend = "DECLINING";
+      }
+
+      let strikeRateTrend = "STABLE";
+
+      if (strikeRateDifference > 0) {
+        strikeRateTrend = "IMPROVING";
+      } else if (strikeRateDifference < 0) {
+        strikeRateTrend = "DECLINING";
+      }
+
+      trendInformation = {
+        chronologicalOrder:
+          "OLDEST_TO_NEWEST",
+
+        runTrend,
+        strikeRateTrend,
+
+        firstRuns: first.runs,
+        latestRuns: latest.runs,
+
+        firstStrikeRate:
+          first.strikeRate,
+
+        latestStrikeRate:
+          latest.strikeRate,
+      };
+    }
+
     const prompt = `
 You are CricketIQ, an AI-powered cricket performance and scouting analyst.
 
-Your job is to analyze a cricket player using ONLY the information provided
-in this prompt.
+Your job is to generate an objective scouting analysis of a cricket player.
 
-You must produce an objective, evidence-based scouting report.
+IMPORTANT DATA SOURCE:
 
-==================================================
+The performance data used for this analysis comes from:
+
+${sourceDescription}
+
+This distinction is important.
+
+If the source is PLAYER_REPORTED:
+- The performance information was submitted by the player.
+- Treat it as player-reported data.
+- Do not describe it as coach-verified.
+
+If the source is COACH_VERIFIED / UNIFIED PERFORMANCE:
+- The performance has been verified through the coach's report.
+- The analysis may describe the performance as coach-verified.
+- This is the stronger performance source for CricketIQ's verified analysis.
+
 PLAYER INFORMATION
-==================================================
 
 Name: ${player.name}
 Role: ${player.role}
 Age: ${player.age}
 
-==================================================
-PERFORMANCE DATA
-==================================================
+PERFORMANCE FEATURES
 
 Matches: ${features.matches}
 Total Runs: ${features.totalRuns}
@@ -42,107 +165,164 @@ Economy: ${features.economy}
 Recent Form: ${features.recentForm}
 Consistency: ${features.consistency}
 
-==================================================
-CALCULATED PERFORMANCE IMPACT
-==================================================
+CALCULATED IMPACT FEATURES
 
 Batting Impact: ${features.battingImpact}
 Bowling Impact: ${features.bowlingImpact}
 Power Hitting: ${features.powerHitting}
 Overall Impact: ${features.overallImpact}
 
-==================================================
-MACHINE LEARNING PREDICTION
-==================================================
+ML PREDICTION
 
 Potential Score: ${prediction.potentialScore}
 Potential Level: ${prediction.potentialLevel}
 Prediction Class: ${prediction.prediction}
 
-==================================================
-IMPORTANT ANALYSIS RULES
-==================================================
+The ML prediction is a predictive signal.
 
-1. Use ONLY the statistics and information provided above.
+It is NOT:
+- proof of future success
+- a guarantee
+- a scouting decision by itself
+- a replacement for actual performance analysis
 
-2. NEVER invent statistics, matches, performances, injuries,
-   career history, player history, rankings, opposition quality,
-   or any other information.
+RECENT PERFORMANCES
 
-3. NEVER assume that a high score automatically means the player
-   will definitely succeed in future matches.
+The performances below are ordered:
 
-4. Clearly distinguish between:
-   - current observed performance
-   - calculated performance metrics
-   - machine learning prediction
+OLDEST → NEWEST
 
-5. Consider the number of matches when evaluating reliability.
+${JSON.stringify(
+  recentPerformances,
+  null,
+  2
+)}
 
-6. If the player has very few matches, explicitly state that the
-   available sample size is limited and that the results should
-   be treated as preliminary.
+CALCULATED TREND INFORMATION
 
-7. Do not describe a player as being at their "peak" unless the
-   provided data actually supports such a conclusion.
+${JSON.stringify(
+  trendInformation,
+  null,
+  2
+)}
 
-8. Do not criticize a player for statistics that are irrelevant
-   to their role.
+ANALYSIS RULES
 
-9. Role-specific analysis:
+1. Use ONLY the information provided in this prompt.
 
-   BATTER:
-   Focus primarily on runs, batting average, strike rate,
-   boundaries, recent form, consistency and power hitting.
+2. Never invent:
+- statistics
+- matches
+- injuries
+- fitness information
+- career history
+- opposition quality
+- match conditions
+- technical weaknesses
+- training history
+- rankings
+- future results
 
-   BOWLER:
-   Focus primarily on wickets, economy, recent form and consistency.
+3. Respect the player's role.
 
-   ALL-ROUNDER:
-   Evaluate both batting and bowling contributions.
+For BATTER:
+Focus primarily on:
+- runs
+- batting average
+- strike rate
+- fours
+- sixes
+- recent form
+- consistency
+- power hitting
 
-10. If a statistic is 0 because it is not relevant to the player's
-    role, do not automatically describe it as a weakness.
+For BOWLER:
+Focus primarily on:
+- wickets
+- economy
+- runs conceded
+- recent form
+- consistency
+- bowling impact
 
-11. Explain the ML prediction using the provided metrics.
-    Do not claim that the model used features that are not provided.
+For ALL-ROUNDER:
+Consider both batting and bowling.
 
-12. The ML prediction is a predictive signal, NOT a guarantee.
+4. Do not treat irrelevant zero values as weaknesses.
 
-13. Recommendations must be practical and directly connected
-    to the available statistics.
+5. Consider the number of matches.
 
-14. Do not describe a calculated metric as "low", "high", "poor",
-    or "excellent" unless its meaning can be reasonably established
-    from the provided data. Prefer describing the actual underlying
-    statistics instead.
+6. If only a small number of matches are available,
+explicitly state that the assessment is preliminary.
 
-==================================================
-OUTPUT REQUIREMENTS
-==================================================
+7. Do not call a metric poor, excellent, high, or low
+unless the provided information reasonably supports that
+description.
+
+8. Explain the ML prediction using ONLY the provided features.
+
+9. Do not claim that the ML model used features that are
+not shown here.
+
+10. Do not confuse ML prediction with observed performance.
+
+11. Recent performances MUST be interpreted chronologically.
+
+12. If the calculated trend says DECLINING, do not describe
+the player as improving.
+
+13. If the calculated trend says IMPROVING, do not describe
+the player as declining.
+
+14. Recommendations must be directly connected to the
+available performance data.
+
+15. Do not provide medical advice.
+
+16. Do not guarantee future performance.
+
+17. The scouting recommendation should describe what the
+available evidence suggests, not make an absolute selection
+decision.
+
+18. Clearly identify whether the analysis is based on
+PLAYER_REPORTED or COACH_VERIFIED data.
+
+19. The potential score should be presented as an ML-based
+predictive signal, not as a direct measure of current ability.
+
+20. Do not use the ML potential score as the primary evidence
+for strengths or weaknesses. Current performance statistics
+and recent trends should be the primary evidence.
 
 Return ONLY valid JSON.
 
 Do not include Markdown.
 Do not include code fences.
-Do not include additional text before or after the JSON.
+Do not include text outside the JSON.
 
 Use exactly this structure:
 
 {
+  "performanceSource": "${sourceDescription}",
   "overallAssessment": "Concise evidence-based assessment of the player's current performance.",
   "strengths": [
-    "Strength supported by the provided statistics.",
+    "Strength supported by the available statistics.",
     "Another relevant strength."
   ],
   "areasForImprovement": [
-    "Specific improvement area supported by the data.",
+    "Specific improvement area supported by the available data.",
     "Another relevant improvement area."
   ],
-  "mlExplanation": "Explain why the ML system produced the given potential score and level using only the provided information.",
+  "recentTrend": {
+    "runTrend": "IMPROVING, DECLINING, STABLE, or INSUFFICIENT_DATA",
+    "strikeRateTrend": "IMPROVING, DECLINING, STABLE, or INSUFFICIENT_DATA",
+    "summary": "Evidence-based explanation of the recent trend."
+  },
+  "mlExplanation": "Explain why the ML system produced the given potential score and level using only the provided features.",
   "potentialAssessment": "Explain what the ML prediction suggests while clearly stating that it is not a guarantee of future success.",
   "sampleSizeAssessment": "Explain how reliable the assessment is based on the number of matches available.",
-  "scoutingRecommendation": "Give a practical scouting recommendation based only on the available evidence.",
+  "scoutingRecommendation": "Practical scouting recommendation based only on the available evidence.",
   "confidence": "LOW"
 }
 
@@ -152,34 +332,46 @@ LOW
 MEDIUM
 HIGH
 
-Use these guidelines:
+Use:
 
 LOW:
-Very limited performance data, especially only a few matches.
+Very limited performance data.
 
 MEDIUM:
-A reasonable amount of performance data exists but more matches
-would improve confidence.
+A reasonable amount of performance data exists, but additional
+matches would improve confidence.
 
 HIGH:
-A sufficiently large performance sample exists to support
-a stronger assessment.
+A sufficiently large performance sample exists to support a
+stronger assessment.
 
 Remember:
 
-- Do not invent information.
-- Do not exaggerate.
-- Do not guarantee future performance.
-- Do not confuse ML prediction with certainty.
-- Keep the analysis professional and cricket-specific.
+- Evidence first.
+- Statistics first.
+- Recent trends matter.
+- Role matters.
+- ML is predictive, not certain.
+- Never invent information.
+- Never exaggerate.
+- Never guarantee future success.
+- Clearly distinguish player-reported and coach-verified data.
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-    });
+    const response =
+      await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+      });
 
-    const text = response.text.trim();
+    const text =
+      response.text?.trim();
+
+    if (!text) {
+      throw new Error(
+        "Empty response received from Gemini"
+      );
+    }
 
     const cleanedText = text
       .replace(/^```json\s*/i, "")
@@ -188,11 +380,11 @@ Remember:
       .trim();
 
     return JSON.parse(cleanedText);
-
   } catch (error) {
     console.error(
-      "Gemini AI Service Error:",
-      error.response?.data || error.message
+      "Gemini AI Scouting Service Error:",
+      error.response?.data ||
+        error.message
     );
 
     throw new Error(
@@ -204,4 +396,3 @@ Remember:
 module.exports = {
   generatePlayerAnalysis,
 };
-

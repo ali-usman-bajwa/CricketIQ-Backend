@@ -14,6 +14,10 @@ const calculateFeatures = (player, statistics) => {
 
   const age = player.age || 0;
 
+  // =====================================================
+  // BATTING SCORES
+  // =====================================================
+
   const battingAverageScore = Math.min(
     100,
     (battingAverage / 50) * 100
@@ -29,6 +33,9 @@ const calculateFeatures = (player, statistics) => {
     strikeRateScore * 0.35 +
     recentForm * 0.25;
 
+  // =====================================================
+  // BOWLING IMPACT
+  // =====================================================
 
   let bowlingImpact = 0;
 
@@ -41,27 +48,29 @@ const calculateFeatures = (player, statistics) => {
       totalWickets * 20
     );
 
-
     const economyScore =
       economy > 0
         ? Math.max(
-          0,
-          Math.min(
-            100,
-            ((10 - economy) / 4) * 100
+            0,
+            Math.min(
+              100,
+              ((10 - economy) / 4) * 100
+            )
           )
-        )
         : 0;
 
     bowlingImpact =
       wicketScore * 0.55 +
       economyScore * 0.25 +
       recentForm * 0.20;
-
-
   }
 
-  const totalBalls = statistics.totalBalls || 0;
+  // =====================================================
+  // POWER HITTING
+  // =====================================================
+
+  const totalBalls =
+    statistics.totalBalls || 0;
 
   let boundaryRate = 0;
 
@@ -95,11 +104,82 @@ const calculateFeatures = (player, statistics) => {
     sixScore * 0.3 +
     strikeRatePowerScore * 0.3;
 
-  const overallImpact =
-    battingImpact * 0.45 +
-    bowlingImpact * 0.10 +
-    recentForm * 0.20 +
-    consistency * 0.25;
+  // =====================================================
+  // ROLE-AWARE OVERALL IMPACT
+  // =====================================================
+
+  let overallImpact = 0;
+
+  // ---------------------------------------------
+  // BATTER
+  // ---------------------------------------------
+
+  if (player.role === "Batter") {
+    overallImpact =
+      battingImpact * 0.55 +
+      powerHitting * 0.15 +
+      recentForm * 0.15 +
+      consistency * 0.15;
+  }
+
+  // ---------------------------------------------
+  // BOWLER
+  // ---------------------------------------------
+
+  else if (player.role === "Bowler") {
+    overallImpact =
+      bowlingImpact * 0.55 +
+      recentForm * 0.20 +
+      consistency * 0.25;
+  }
+
+  // ---------------------------------------------
+  // ALL-ROUNDER
+  // ---------------------------------------------
+
+  else if (player.role === "All-Rounder") {
+    overallImpact =
+      battingImpact * 0.30 +
+      bowlingImpact * 0.30 +
+      powerHitting * 0.10 +
+      recentForm * 0.15 +
+      consistency * 0.15;
+  }
+
+  // ---------------------------------------------
+  // WICKET-KEEPER
+  // ---------------------------------------------
+  //
+  // Your current dataset does not contain
+  // wicketkeeping-specific statistics.
+  //
+  // Therefore, evaluate the wicketkeeper
+  // primarily through batting performance.
+  // ---------------------------------------------
+
+  else if (player.role === "Wicket-Keeper") {
+    overallImpact =
+      battingImpact * 0.50 +
+      powerHitting * 0.15 +
+      recentForm * 0.20 +
+      consistency * 0.15;
+  }
+
+  // ---------------------------------------------
+  // FALLBACK
+  // ---------------------------------------------
+
+  else {
+    overallImpact =
+      battingImpact * 0.45 +
+      recentForm * 0.20 +
+      consistency * 0.25 +
+      powerHitting * 0.10;
+  }
+
+  // =====================================================
+  // RETURN FEATURES
+  // =====================================================
 
   return {
     age,
@@ -114,24 +194,33 @@ const calculateFeatures = (player, statistics) => {
     recentForm,
     consistency,
 
-
     battingImpact: Number(
-      Math.min(100, battingImpact).toFixed(2)
+      Math.min(
+        100,
+        battingImpact
+      ).toFixed(2)
     ),
 
     bowlingImpact: Number(
-      Math.min(100, bowlingImpact).toFixed(2)
+      Math.min(
+        100,
+        bowlingImpact
+      ).toFixed(2)
     ),
 
     powerHitting: Number(
-      Math.min(100, powerHitting).toFixed(2)
+      Math.min(
+        100,
+        powerHitting
+      ).toFixed(2)
     ),
 
     overallImpact: Number(
-      Math.min(100, overallImpact).toFixed(2)
+      Math.min(
+        100,
+        overallImpact
+      ).toFixed(2)
     ),
-
-
   };
 };
 

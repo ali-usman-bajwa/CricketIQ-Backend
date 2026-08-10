@@ -11,65 +11,119 @@ const generateTeamAnalysis = async ({
   teamMetrics,
 }) => {
   try {
+    // =====================================================
+    // VALIDATION
+    // =====================================================
+
+    if (!Array.isArray(recommendedXI) || recommendedXI.length === 0) {
+      throw new Error(
+        "Recommended XI is required"
+      );
+    }
+
+    // =====================================================
+    // PREPARE TEAM DATA FOR AI
+    // =====================================================
+
     const teamData = recommendedXI.map((item) => ({
       name: item.player.name,
       role: item.role,
       age: item.player.age,
 
-      battingAverage: item.features.battingAverage,
-      strikeRate: item.features.strikeRate,
-      totalRuns: item.features.totalRuns,
-      fours: item.features.fours,
-      sixes: item.features.sixes,
+      matches:
+        item.features.matches,
 
-      totalWickets: item.features.totalWickets,
-      economy: item.features.economy,
+      battingAverage:
+        item.features.battingAverage,
 
-      recentForm: item.features.recentForm,
-      consistency: item.features.consistency,
+      strikeRate:
+        item.features.strikeRate,
 
-      battingImpact: item.features.battingImpact,
-      bowlingImpact: item.features.bowlingImpact,
-      powerHitting: item.features.powerHitting,
-      overallImpact: item.features.overallImpact,
+      totalRuns:
+        item.features.totalRuns,
+
+      fours:
+        item.features.fours,
+
+      sixes:
+        item.features.sixes,
+
+      totalWickets:
+        item.features.totalWickets,
+
+      economy:
+        item.features.economy,
+
+      recentForm:
+        item.features.recentForm,
+
+      consistency:
+        item.features.consistency,
+
+      battingImpact:
+        item.features.battingImpact,
+
+      bowlingImpact:
+        item.features.bowlingImpact,
+
+      powerHitting:
+        item.features.powerHitting,
+
+      overallImpact:
+        item.features.overallImpact,
 
       potentialScore:
         item.prediction.potentialScore,
 
       potentialLevel:
         item.prediction.potentialLevel,
+
+      prediction:
+        item.prediction.prediction,
     }));
+
+    // =====================================================
+    // GEMINI PROMPT
+    // =====================================================
 
     const prompt = `
 You are CricketIQ, an AI-powered cricket team selection analyst.
 
-Your job is to analyze the recommended cricket team using ONLY
-the information provided below.
+Your task is to analyze a recommended cricket XI using ONLY
+the structured information provided below.
 
-Do not invent player history, injuries, opposition quality,
-match conditions, rankings, career statistics, or any other
-information that is not provided.
+The backend has already:
 
-==================================================
+- processed player performance data
+- calculated player features
+- generated ML predictions
+- selected the recommended XI
+- calculated role distribution
+- calculated team-level metrics
+
+You must NOT recalculate these values.
+
+Your responsibility is to explain the selected team objectively.
+
+====================================================
 TEAM INFORMATION
-==================================================
+====================================================
 
 Format: ${format}
 
 Team Size: ${recommendedXI.length}
 
-==================================================
-ROLE DISTRIBUTION
-==================================================
+Batters:
+${roleDistribution.batters}
 
-Batters: ${roleDistribution.batters}
-Wicket-Keepers: ${roleDistribution.wicketkeepers}
-All-Rounders: ${roleDistribution.allRounders}
-Bowlers: ${roleDistribution.bowlers}
+Wicket-Keepers:
+${roleDistribution.wicketkeepers}
 
-==================================================
-TEAM METRICS
-==================================================
+All-Rounders:
+${roleDistribution.allRounders}
+
+Bowlers:
+${roleDistribution.bowlers}
 
 Average Potential:
 ${teamMetrics.averagePotential}
@@ -77,118 +131,184 @@ ${teamMetrics.averagePotential}
 Average Overall Impact:
 ${teamMetrics.averageOverallImpact}
 
-==================================================
+====================================================
 SELECTED PLAYERS
-==================================================
+====================================================
 
 ${JSON.stringify(teamData, null, 2)}
 
-==================================================
+====================================================
 ANALYSIS RULES
-==================================================
+====================================================
 
-1. Use ONLY the provided information.
+1. Use ONLY the information provided above.
 
-2. Do not invent statistics or player characteristics.
+2. NEVER invent:
 
-3. Evaluate the balance of the selected XI.
+- player history
+- injuries
+- fitness information
+- opposition quality
+- match conditions
+- rankings
+- career achievements
+- playing style
+- technical weaknesses
+- statistics not provided
 
-4. Consider batting depth, bowling coverage,
-   all-rounder contribution and wicketkeeping.
+3. Do not modify or recalculate backend metrics.
 
-5. Consider player potential scores and overall impact.
+4. Clearly distinguish between:
 
-6. Do not assume that a higher ML score guarantees
-   better future performance.
+- observed performance statistics
+- calculated CricketIQ metrics
+- ML potential prediction
+- AI-generated team interpretation
 
-7. Clearly distinguish between:
-   - player statistics
-   - calculated performance metrics
-   - ML potential prediction
-   - AI team recommendation
+5. Evaluate the overall structure of the selected XI.
 
-8. If the team contains players with very limited
-   performance data, mention that this reduces
-   confidence in the team assessment.
+6. Consider:
 
-9. Do not criticize a player based on statistics
-   that are irrelevant to their role.
+- batting depth
+- wicketkeeping coverage
+- all-rounder contribution
+- bowling coverage
+- recent form
+- consistency
+- overall impact
+- ML potential
 
-10. Do not claim that the team is guaranteed to win.
+7. Respect player roles.
 
-11. Captain and vice-captain recommendations must be
-    based only on the provided performance metrics.
+8. Do not treat irrelevant statistics as weaknesses.
 
-12. Explain why the selected captain and vice-captain
-    were chosen.
+9. A high ML potential score does NOT guarantee future success.
 
-==================================================
+10. Do not claim that this XI will win a match.
+
+11. Captain and vice-captain recommendations are AI recommendations
+based ONLY on the provided statistics and metrics.
+
+12. Do not invent leadership qualities, experience,
+personality, or captaincy history.
+
+13. If the selected players have limited match history,
+explicitly mention that this reduces confidence.
+
+14. Do not exaggerate small statistical differences.
+
+15. The team selection itself has already been performed by the
+backend. Explain the selection rather than replacing it.
+
+====================================================
+CAPTAIN / VICE-CAPTAIN
+====================================================
+
+Recommend a captain and vice-captain ONLY from the selected XI.
+
+Base the recommendation on:
+
+- overallImpact
+- recentForm
+- consistency
+- role contribution
+- battingImpact
+- bowlingImpact
+- potentialScore
+
+Do NOT claim leadership ability unless leadership information
+is explicitly provided.
+
+====================================================
 OUTPUT
-==================================================
+====================================================
 
 Return ONLY valid JSON.
+
+Do not include Markdown.
+Do not include code fences.
+Do not include text before or after the JSON.
 
 Use exactly this structure:
 
 {
   "teamSummary": "Overall assessment of the selected XI.",
+
   "teamStrengths": [
-    "Strength of the selected team.",
-    "Another team strength."
+    "Evidence-based team strength.",
+    "Another evidence-based team strength."
   ],
+
   "teamWeaknesses": [
-    "Potential weakness based only on provided data.",
+    "Potential weakness based only on the provided data.",
     "Another potential weakness."
   ],
+
   "battingAnalysis": "Assessment of the batting structure and available batting contribution.",
+
   "bowlingAnalysis": "Assessment of the bowling structure and available bowling contribution.",
+
   "teamBalance": "Assessment of overall team balance.",
+
   "captainRecommendation": {
     "player": "Player name",
-    "reason": "Evidence-based reason for selecting the captain."
+    "reason": "Evidence-based reason using only the provided metrics."
   },
+
   "viceCaptainRecommendation": {
     "player": "Player name",
-    "reason": "Evidence-based reason for selecting the vice-captain."
+    "reason": "Evidence-based reason using only the provided metrics."
   },
+
   "keyPlayers": [
     {
       "player": "Player name",
-      "reason": "Why this player is important to the team."
+      "reason": "Why this player is important based on the provided data."
     },
     {
       "player": "Player name",
-      "reason": "Why this player is important to the team."
+      "reason": "Why this player is important based on the provided data."
     }
   ],
-  "selectionAssessment": "Explain why the ML-ranked players and role distribution resulted in this XI.",
+
+  "selectionAssessment": "Explain how the backend-selected XI is supported by the available performance metrics, role distribution and ML predictions.",
+
   "dataLimitations": "Explain limitations caused by the available performance data.",
+
   "confidence": "LOW"
 }
 
-The confidence field must be exactly:
+The confidence field MUST be exactly one of:
 
 LOW
 MEDIUM
 HIGH
 
-Use LOW when several players have very limited performance data.
+LOW:
+Several players have very limited performance data.
 
-Use MEDIUM when the team has a reasonable amount of
-performance data but more matches would improve reliability.
+MEDIUM:
+Reasonable performance history exists, but more matches would
+improve reliability.
 
-Use HIGH only when the available performance history
-is sufficiently large.
+HIGH:
+Sufficient and relatively balanced performance history exists.
 
 Remember:
 
-- Be objective.
-- Be cricket-specific.
-- Use evidence.
+- Evidence-based.
+- Professional.
+- Cricket-specific.
+- Respect player roles.
 - Do not invent information.
 - Do not guarantee future success.
-- Do not confuse ML predictions with certainty.
+- Do not treat ML prediction as certainty.
+- Do not replace backend team selection.
 `;
+
+    // =====================================================
+    // GEMINI REQUEST
+    // =====================================================
 
     const response =
       await ai.models.generateContent({
@@ -196,20 +316,28 @@ Remember:
         contents: prompt,
       });
 
-    const text = response.text.trim();
+    // =====================================================
+    // PARSE JSON
+    // =====================================================
 
-    const cleanedText = text
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim();
+    const text =
+      response.text.trim();
+
+    const cleanedText =
+      text
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
 
     return JSON.parse(cleanedText);
 
   } catch (error) {
+
     console.error(
       "Gemini AI Team Builder Error:",
-      error.response?.data || error.message
+      error.response?.data ||
+        error.message
     );
 
     throw new Error(

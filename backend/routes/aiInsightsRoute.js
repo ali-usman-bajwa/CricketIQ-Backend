@@ -6,9 +6,10 @@ const {
 
 const protect =
   require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-router.get("/player/:playerId",protect,generatePlayerReportController);
+router.get("/player/:playerId",protect,authorize("Player", "Coach", "Admin"),generatePlayerReportController);
 
 module.exports = router;

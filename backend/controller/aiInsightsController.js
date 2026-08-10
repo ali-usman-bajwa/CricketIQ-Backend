@@ -10,55 +10,55 @@ const {
   generatePlayerReport,
 } = require("../services/aiInsightsService");
 
-const Player = require("../models/Player");
-const Performance = require("../models/Performance");
+// =====================================================
+// GENERATE PLAYER INSIGHTS / PERFORMANCE REPORT
+// =====================================================
 
-const generatePlayerReportController = async (req,res) => {
+const generatePlayerReportController = async (req, res) => {
   try {
     const { playerId } = req.params;
 
-    const player = await Player.findById(playerId);
+    // -------------------------------------------------
+    // Build features using the centralized performance
+    // selection logic.
+    //
+    // This means:
+    // PLAYER_REPORTED  -> player report
+    // COACH_REPORTED   -> player report if available,
+    //                    otherwise coach report
+    // COACH_VERIFIED   -> unified performance
+    // -------------------------------------------------
 
-    if (!player) {
-      return res.status(404).json({
-        success: false,
-        message: "Player not found",
-      });
-    }
+    const result = await buildPlayerFeatures(playerId);
 
-    const result =
-      await buildPlayerFeatures(playerId);
+    // -------------------------------------------------
+    // Generate ML prediction
+    // -------------------------------------------------
 
-    const prediction =
-      await predictPlayerPotential(
-        result.features
-      );
+    const prediction = await predictPlayerPotential(
+      result.features
+    );
 
-    const performances =
-      await Performance.find({
-        player: playerId,
-      })
-        .sort({
-          createdAt: -1,
-        })
-        .limit(5)
-        .lean();
+    // -------------------------------------------------
+    // Generate AI insights
+    // -------------------------------------------------
 
-    if (!performances.length) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "No performance data found for this player",
-      });
-    }
+    const report = await generatePlayerReport({
+      player: result.player,
 
-    const report =
-      await generatePlayerReport({
-        player: result.player,
-        features: result.features,
-        prediction,
-        performances,
-      });
+      features: result.features,
+
+      prediction,
+
+      // These performances have already been selected
+      // by playerFeatureService according to their
+      // verification status.
+      performances: result.performances,
+    });
+
+    // -------------------------------------------------
+    // Response
+    // -------------------------------------------------
 
     return res.status(200).json({
       success: true,
@@ -73,12 +73,17 @@ const generatePlayerReportController = async (req,res) => {
         report,
       },
     });
-
   } catch (error) {
+    // -------------------------------------------------
+    // Known errors
+    // -------------------------------------------------
 
     if (
+      error.message === "Player not found" ||
       error.message ===
-        "No performance data found for this player"
+        "No performance data found for this player" ||
+      error.message ===
+        "No valid performance data available for analysis"
     ) {
       return res.status(404).json({
         success: false,
@@ -86,9 +91,13 @@ const generatePlayerReportController = async (req,res) => {
       });
     }
 
+    // -------------------------------------------------
+    // Unexpected errors
+    // -------------------------------------------------
+
     console.error(
       "AI Insights Controller Error:",
-      error.message
+      error
     );
 
     return res.status(500).json({
@@ -98,6 +107,10 @@ const generatePlayerReportController = async (req,res) => {
     });
   }
 };
+
+// =====================================================
+// EXPORT
+// =====================================================
 
 module.exports = {
   generatePlayerReportController,

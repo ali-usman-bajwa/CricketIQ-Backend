@@ -6,11 +6,17 @@ const {
   generatePlayerComparison,
 } = require("../services/aiComparisonService");
 
+// =====================================================
+// AI PLAYER COMPARISON
+// =====================================================
 
 const aiComparePlayersController = async (req, res) => {
   try {
     const { playerIds } = req.body;
 
+    // -------------------------------------------------
+    // Validate playerIds
+    // -------------------------------------------------
 
     if (!Array.isArray(playerIds)) {
       return res.status(400).json({
@@ -33,12 +39,48 @@ const aiComparePlayersController = async (req, res) => {
       });
     }
 
-    const comparison = await comparePlayers(playerIds);
+    // Prevent comparing the same player multiple times
+    const uniquePlayerIds = [
+      ...new Set(playerIds.map((id) => id.toString())),
+    ];
+
+    if (uniquePlayerIds.length !== playerIds.length) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Duplicate player IDs are not allowed",
+      });
+    }
+
+    // -------------------------------------------------
+    // Build comparison
+    //
+    // playerComparisonService should use the same
+    // performance-selection logic as:
+    //
+    // PLAYER_REPORTED
+    // COACH_REPORTED
+    // COACH_VERIFIED -> UNIFIED PERFORMANCE
+    // -------------------------------------------------
+
+    const comparison = await comparePlayers(
+      uniquePlayerIds
+    );
+
+    // -------------------------------------------------
+    // Generate AI comparison
+    // -------------------------------------------------
 
     const aiComparison =
-      await generatePlayerComparison(comparison);
+      await generatePlayerComparison(
+        comparison
+      );
 
-    res.status(200).json({
+    // -------------------------------------------------
+    // Response
+    // -------------------------------------------------
+
+    return res.status(200).json({
       success: true,
 
       data: {
@@ -46,15 +88,17 @@ const aiComparePlayersController = async (req, res) => {
         aiComparison,
       },
     });
-
-
   } catch (error) {
-
+    // -------------------------------------------------
+    // Known errors
+    // -------------------------------------------------
 
     if (
       error.message === "Player not found" ||
       error.message ===
-      "No performance data found for this player"
+        "No performance data found for this player" ||
+      error.message ===
+        "No valid performance data available for analysis"
     ) {
       return res.status(404).json({
         success: false,
@@ -62,17 +106,20 @@ const aiComparePlayersController = async (req, res) => {
       });
     }
 
+    // -------------------------------------------------
+    // Unexpected errors
+    // -------------------------------------------------
+
     console.error(
       "AI Player Comparison Error:",
-      error.message
+      error
     );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Unable to generate AI player comparison",
+      message:
+        "Unable to generate AI player comparison",
     });
-
-
   }
 };
 
