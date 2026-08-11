@@ -11,8 +11,6 @@ const register = async (req, res) => {
       email,
       password,
       role,
-
-      // Player-specific fields
       age,
       playerRole,
       battingStyle,
@@ -51,10 +49,6 @@ const register = async (req, res) => {
       });
     }
 
-    // -----------------------------
-    // Validate Player information
-    // -----------------------------
-
     if (userRole === "Player") {
       if (
         age === undefined ||
@@ -70,18 +64,10 @@ const register = async (req, res) => {
       }
     }
 
-    // -----------------------------
-    // Hash password
-    // -----------------------------
-
     const hashedPassword = await bcrypt.hash(
       password,
       10
     );
-
-    // -----------------------------
-    // Create User
-    // -----------------------------
 
     const user = await User.create({
       name,
@@ -89,10 +75,6 @@ const register = async (req, res) => {
       password: hashedPassword,
       role: userRole,
     });
-
-    // -----------------------------
-    // Create Player profile
-    // -----------------------------
 
     let player = null;
 
@@ -110,9 +92,6 @@ const register = async (req, res) => {
       });
     }
 
-    // -----------------------------
-    // Response
-    // -----------------------------
 
     return res.status(201).json({
       success: true,

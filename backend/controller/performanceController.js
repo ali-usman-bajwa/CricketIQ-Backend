@@ -10,9 +10,6 @@ const {
   buildUnifiedPerformance,
 } = require("../services/performanceService");
 
-// =====================================================
-// POPULATE HELPER
-// =====================================================
 
 const populatePerformance = (query) => {
   return query
@@ -45,10 +42,6 @@ const populatePerformance = (query) => {
     );
 };
 
-// =====================================================
-// CREATE / SUBMIT PERFORMANCE
-// =====================================================
-
 const createPerformance = async (
   req,
   res
@@ -62,9 +55,6 @@ const createPerformance = async (
       coachEvaluation,
     } = req.body;
 
-    // -------------------------------------------------
-    // Validate required IDs
-    // -------------------------------------------------
 
     if (!player || !match) {
       return res.status(400).json({
@@ -85,9 +75,6 @@ const createPerformance = async (
       });
     }
 
-    // -------------------------------------------------
-    // Check match
-    // -------------------------------------------------
 
     const existingMatch =
       await Match.findById(match);
@@ -109,10 +96,6 @@ const createPerformance = async (
       });
     }
 
-    // -------------------------------------------------
-    // Check player
-    // -------------------------------------------------
-
     const existingPlayer =
       await Player.findById(player);
 
@@ -123,14 +106,7 @@ const createPerformance = async (
       });
     }
 
-    // =================================================
-    // COACH AUTHORIZATION
-    // =================================================
-
     if (req.user.role === "Coach") {
-      // -----------------------------------------------
-      // Find team managed by this coach
-      // -----------------------------------------------
 
       const coachTeam =
         await Team.findOne({
@@ -145,9 +121,6 @@ const createPerformance = async (
         });
       }
 
-      // -----------------------------------------------
-      // Player must belong to coach's team
-      // -----------------------------------------------
 
       const playerBelongsToTeam =
         coachTeam.players.some(
@@ -164,9 +137,6 @@ const createPerformance = async (
         });
       }
 
-      // -----------------------------------------------
-      // Coach's team must participate in match
-      // -----------------------------------------------
 
       const teamParticipated =
         existingMatch.teamA.toString() ===
@@ -183,10 +153,6 @@ const createPerformance = async (
       }
     }
 
-    // =================================================
-    // PLAYER AUTHORIZATION
-    // =================================================
-
     if (req.user.role === "Player") {
       const playerProfile =
         await Player.findOne({
@@ -201,9 +167,6 @@ const createPerformance = async (
         });
       }
 
-      // -----------------------------------------------
-      // Player can only submit own performance
-      // -----------------------------------------------
 
       if (
         playerProfile._id.toString() !==
@@ -215,10 +178,6 @@ const createPerformance = async (
             "You can only submit your own performance",
         });
       }
-
-      // -----------------------------------------------
-      // Player must have participated in match
-      // -----------------------------------------------
 
       const playerTeam =
         await Team.findOne({
@@ -248,24 +207,14 @@ const createPerformance = async (
       }
     }
 
-    // =================================================
-    // FIND EXISTING PERFORMANCE
-    // =================================================
-
     let performance =
       await Performance.findOne({
         player,
         match,
       });
 
-    // =================================================
-    // PLAYER SUBMISSION
-    // =================================================
 
     if (req.user.role === "Player") {
-      // -----------------------------------------------
-      // Player report required
-      // -----------------------------------------------
 
       if (!playerReport) {
         return res.status(400).json({
@@ -274,10 +223,6 @@ const createPerformance = async (
             "Player performance data is required",
         });
       }
-
-      // -----------------------------------------------
-      // Prevent duplicate submission
-      // -----------------------------------------------
 
       if (
         performance &&
@@ -290,18 +235,10 @@ const createPerformance = async (
         });
       }
 
-      // -----------------------------------------------
-      // Calculate derived statistics
-      // -----------------------------------------------
-
       const calculatedPlayerReport =
         calculateDerivedStats(
           playerReport
         );
-
-      // -----------------------------------------------
-      // Create performance
-      // -----------------------------------------------
 
       if (!performance) {
         performance =
@@ -317,17 +254,9 @@ const createPerformance = async (
           });
       }
 
-      // -----------------------------------------------
-      // Existing coach report
-      // -----------------------------------------------
-
       else {
         performance.playerReport =
           calculatedPlayerReport;
-
-        // ---------------------------------------------
-        // Coach report already exists
-        // ---------------------------------------------
 
         if (performance.coachReport) {
           const unified =
@@ -345,12 +274,8 @@ const createPerformance = async (
             performance.verifiedAt ||
             new Date();
 
-          // Keep existing coach as verifier.
         }
 
-        // ---------------------------------------------
-        // Coach report doesn't exist
-        // ---------------------------------------------
 
         else {
           performance.verificationStatus =
@@ -384,14 +309,7 @@ const createPerformance = async (
       });
     }
 
-    // =================================================
-    // COACH SUBMISSION
-    // =================================================
-
     if (req.user.role === "Coach") {
-      // -----------------------------------------------
-      // Coach report required
-      // -----------------------------------------------
 
       if (!coachReport) {
         return res.status(400).json({
@@ -400,10 +318,6 @@ const createPerformance = async (
             "Coach performance data is required",
         });
       }
-
-      // -----------------------------------------------
-      // Prevent duplicate coach submission
-      // -----------------------------------------------
 
       if (
         performance &&
@@ -416,18 +330,12 @@ const createPerformance = async (
         });
       }
 
-      // -----------------------------------------------
-      // Calculate coach statistics
-      // -----------------------------------------------
 
       const calculatedCoachReport =
         calculateDerivedStats(
           coachReport
         );
 
-      // -----------------------------------------------
-      // Coach submits first
-      // -----------------------------------------------
 
       if (!performance) {
         performance =
@@ -452,20 +360,12 @@ const createPerformance = async (
           });
       }
 
-      // -----------------------------------------------
-      // Player report already exists
-      // -----------------------------------------------
-
       else {
         performance.coachReport =
           calculatedCoachReport;
 
         performance.coachEvaluation =
           coachEvaluation || null;
-
-        // ---------------------------------------------
-        // Both reports now exist
-        // ---------------------------------------------
 
         if (
           performance.playerReport
@@ -488,9 +388,6 @@ const createPerformance = async (
             new Date();
         }
 
-        // ---------------------------------------------
-        // Only coach report exists
-        // ---------------------------------------------
 
         else {
           performance.unifiedPerformance =
@@ -524,10 +421,6 @@ const createPerformance = async (
       });
     }
 
-    // =================================================
-    // ADMIN SUBMISSION
-    // =================================================
-
     if (req.user.role === "Admin") {
       if (
         !playerReport &&
@@ -540,9 +433,6 @@ const createPerformance = async (
         });
       }
 
-      // -----------------------------------------------
-      // Create new performance
-      // -----------------------------------------------
 
       if (!performance) {
         const calculatedPlayerReport =
@@ -603,9 +493,6 @@ const createPerformance = async (
           });
       }
 
-      // -----------------------------------------------
-      // Update existing performance
-      // -----------------------------------------------
 
       else {
         if (playerReport) {
@@ -624,10 +511,6 @@ const createPerformance = async (
           performance.coachEvaluation =
             coachEvaluation || null;
         }
-
-        // ---------------------------------------------
-        // Both reports exist
-        // ---------------------------------------------
 
         if (
           performance.playerReport &&
@@ -651,9 +534,6 @@ const createPerformance = async (
             new Date();
         }
 
-        // ---------------------------------------------
-        // Only coach report exists
-        // ---------------------------------------------
 
         else if (
           performance.coachReport
@@ -671,9 +551,6 @@ const createPerformance = async (
             null;
         }
 
-        // ---------------------------------------------
-        // Only player report exists
-        // ---------------------------------------------
 
         else {
           performance.verificationStatus =
@@ -707,10 +584,6 @@ const createPerformance = async (
       });
     }
 
-    // =================================================
-    // UNSUPPORTED ROLE
-    // =================================================
-
     return res.status(403).json({
       success: false,
       message:
@@ -739,10 +612,6 @@ const createPerformance = async (
   }
 };
 
-// =====================================================
-// GET ALL PERFORMANCES
-// =====================================================
-
 const getPerformances = async (
   req,
   res
@@ -767,10 +636,6 @@ const getPerformances = async (
     });
   }
 };
-
-// =====================================================
-// GET PLAYER PERFORMANCES
-// =====================================================
 
 const getPlayerPerformances = async (
   req,
@@ -803,9 +668,6 @@ const getPlayerPerformances = async (
       });
     }
 
-    // =================================================
-    // PLAYER AUTHORIZATION
-    // =================================================
 
     if (req.user.role === "Player") {
       const playerProfile =
@@ -832,10 +694,6 @@ const getPlayerPerformances = async (
         });
       }
     }
-
-    // =================================================
-    // COACH AUTHORIZATION
-    // =================================================
 
     if (req.user.role === "Coach") {
       const coachTeam =
@@ -867,9 +725,6 @@ const getPlayerPerformances = async (
       }
     }
 
-    // =================================================
-    // GET PERFORMANCES
-    // =================================================
 
     const performances =
       await populatePerformance(
@@ -892,10 +747,6 @@ const getPlayerPerformances = async (
     });
   }
 };
-
-// =====================================================
-// GET SINGLE PERFORMANCE
-// =====================================================
 
 const getPerformance = async (
   req,
@@ -925,9 +776,6 @@ const getPerformance = async (
       });
     }
 
-    // =================================================
-    // PLAYER AUTHORIZATION
-    // =================================================
 
     if (req.user.role === "Player") {
       const playerProfile =
@@ -955,9 +803,6 @@ const getPerformance = async (
       }
     }
 
-    // =================================================
-    // COACH AUTHORIZATION
-    // =================================================
 
     if (req.user.role === "Coach") {
       const coachTeam =
@@ -989,9 +834,6 @@ const getPerformance = async (
       }
     }
 
-    // =================================================
-    // POPULATE
-    // =================================================
 
     const populatedPerformance =
       await populatePerformance(
@@ -1009,10 +851,6 @@ const getPerformance = async (
     });
   }
 };
-
-// =====================================================
-// DELETE PERFORMANCE
-// =====================================================
 
 const deletePerformance = async (
   req,
@@ -1042,9 +880,6 @@ const deletePerformance = async (
       });
     }
 
-    // =================================================
-    // COACH CAN DELETE ONLY THEIR TEAM'S PERFORMANCE
-    // =================================================
 
     if (req.user.role === "Coach") {
       const coachTeam =
@@ -1092,10 +927,6 @@ const deletePerformance = async (
     });
   }
 };
-
-// =====================================================
-// EXPORTS
-// =====================================================
 
 module.exports = {
   createPerformance,

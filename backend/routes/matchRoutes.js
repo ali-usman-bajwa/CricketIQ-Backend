@@ -10,47 +10,18 @@ const {
 
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
+const validateObjectId = require("../middleware/validateObjectId");
 
 const router = express.Router();
 
-// Create match
-router.post(
-  "/",
-  protect,
-  authorize("Coach", "Admin"),
-  createMatch
-);
+router.post("/",protect,authorize("Coach", "Admin"),createMatch);
 
-// Get matches
-router.get(
-  "/",
-  protect,
-  authorize("Player", "Coach", "Admin"),
-  getMatches
-);
+router.get("/",protect,authorize("Player", "Coach", "Admin"),getMatches);
 
-// Get single match
-router.get(
-  "/:id",
-  protect,
-  authorize("Player", "Coach", "Admin"),
-  getMatch
-);
+router.get("/:id",protect,authorize("Player", "Coach", "Admin"),validateObjectId(),getMatch);
 
-// Update match
-router.put(
-  "/:id",
-  protect,
-  authorize("Coach", "Admin"),
-  updateMatch
-);
+router.put("/:id",protect,authorize("Coach", "Admin"),validateObjectId(),updateMatch);
 
-// Delete match
-router.delete(
-  "/:id",
-  protect,
-  authorize("Admin"),
-  deleteMatch
-);
+router.delete("/:id",protect,authorize("Admin"),validateObjectId(),deleteMatch);
 
 module.exports = router;

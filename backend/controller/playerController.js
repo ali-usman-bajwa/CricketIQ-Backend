@@ -1,12 +1,5 @@
 const Player = require("../models/Player");
 
-
-// =====================================================
-// CREATE PLAYER
-// =====================================================
-// Normally Player registration happens through auth/register.
-// Keep this for Admin only.
-
 const createPlayer = async (req, res) => {
   try {
     const player = await Player.create(req.body);
@@ -24,11 +17,6 @@ const createPlayer = async (req, res) => {
     });
   }
 };
-
-
-// =====================================================
-// GET ALL PLAYERS
-// =====================================================
 
 const getPlayers = async (req, res) => {
   try {
@@ -48,11 +36,6 @@ const getPlayers = async (req, res) => {
     });
   }
 };
-
-
-// =====================================================
-// GET SINGLE PLAYER
-// =====================================================
 
 const getPlayer = async (req, res) => {
   try {
@@ -78,11 +61,6 @@ const getPlayer = async (req, res) => {
     });
   }
 };
-
-
-// =====================================================
-// UPDATE PLAYER
-// =====================================================
 
 const updatePlayer = async (req, res) => {
   try {
@@ -146,11 +124,6 @@ const updatePlayer = async (req, res) => {
   }
 };
 
-
-// =====================================================
-// DELETE PLAYER
-// =====================================================
-
 const deletePlayer = async (req, res) => {
   try {
     const player =
@@ -177,7 +150,6 @@ const deletePlayer = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   createPlayer,

@@ -12,56 +12,22 @@ const {
 
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
+const validateObjectId = require("../middleware/validateObjectId");
 
 const router = express.Router();
 
-router.post(
-  "/",
-  protect,
-  authorize("Coach", "Admin"),
-  createTeam
-);
+router.post("/",protect,authorize("Coach", "Admin"),createTeam);
 
-router.get(
-  "/",
-  protect,
-  authorize("Player", "Coach", "Admin"),
-  getTeams
-);
+router.get("/",protect,authorize("Player", "Coach", "Admin"),getTeams);
 
-router.get(
-  "/:id",
-  protect,
-  authorize("Player", "Coach", "Admin"),
-  getTeam
-);
+router.get("/:id",protect,authorize("Player", "Coach", "Admin"),validateObjectId(),getTeam);
 
-router.put(
-  "/:id",
-  protect,
-  authorize("Coach", "Admin"),
-  updateTeam
-);
+router.put("/:id",protect,authorize("Coach", "Admin"), validateObjectId(),updateTeam);
 
-router.delete(
-  "/:id",
-  protect,
-  authorize("Admin"),
-  deleteTeam
-);
+router.delete("/:id",protect,authorize("Admin"),validateObjectId(),deleteTeam);
 
-router.post(
-  "/:id/players",
-  protect,
-  authorize("Coach", "Admin"),
-  addPlayerToTeam
-);
+router.post("/:id/players",protect,authorize("Coach", "Admin"), validateObjectId(),addPlayerToTeam);
 
-router.delete(
-  "/:id/players/:playerId",
-  protect,
-  authorize("Coach", "Admin"),
-  removePlayerFromTeam
-);
+router.delete("/:id/players/:playerId",protect,authorize("Coach", "Admin"),validateObjectId(),removePlayerFromTeam);
 
 module.exports = router;

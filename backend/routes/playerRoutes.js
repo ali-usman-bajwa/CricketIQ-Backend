@@ -2,6 +2,7 @@ const express = require("express");
 
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
+const validateObjectId = require("../middleware/validateObjectId");
 
 const {
   createPlayer,
@@ -14,68 +15,14 @@ const {
 const router = express.Router();
 
 
-// =====================================================
-// CREATE PLAYER
-// =====================================================
-// Normal player registration happens through:
-// POST /api/auth/register
-//
-// This route is only for Admin.
-router.post(
-  "/",
-  protect,
-  authorize("Admin"),
-  createPlayer
-);
+router.post("/",protect,authorize("Admin"),createPlayer);
 
+router.get("/",protect,authorize("Player", "Coach", "Admin"),getPlayers);
 
-// =====================================================
-// GET ALL PLAYERS
-// =====================================================
-// Player, Coach and Admin can view players.
-router.get(
-  "/",
-  protect,
-  authorize("Player", "Coach", "Admin"),
-  getPlayers
-);
+router.get("/:id",protect,authorize("Player", "Coach", "Admin"),validateObjectId(),getPlayer);
 
+router.put("/:id",protect, authorize("Player", "Admin"),validateObjectId(),updatePlayer);
 
-// =====================================================
-// GET SINGLE PLAYER
-// =====================================================
-// Player, Coach and Admin can view a player.
-router.get(
-  "/:id",
-  protect,
-  authorize("Player", "Coach", "Admin"),
-  getPlayer
-);
-
-
-// =====================================================
-// UPDATE PLAYER
-// =====================================================
-// Player → can update own profile
-// Admin  → can update any player
-router.put(
-  "/:id",
-  protect,
-  authorize("Player", "Admin"),
-  updatePlayer
-);
-
-
-// =====================================================
-// DELETE PLAYER
-// =====================================================
-// Admin only.
-router.delete(
-  "/:id",
-  protect,
-  authorize("Admin"),
-  deletePlayer
-);
-
+router.delete("/:id",protect, authorize("Admin"),validateObjectId(),deletePlayer);
 
 module.exports = router;

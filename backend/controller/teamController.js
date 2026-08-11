@@ -3,17 +3,11 @@ const mongoose = require("mongoose");
 const Team = require("../models/Team");
 const Player = require("../models/Player");
 
-// =====================================================
-// HELPER — CHECK TEAM MANAGEMENT AUTHORIZATION
-// =====================================================
-
 const checkTeamManagementAccess = (team, user) => {
-  // Admin can manage every team
   if (user.role === "Admin") {
     return true;
   }
 
-  // Coach can only manage teams they own
   if (user.role === "Coach") {
     if (
       !team.coach ||
@@ -27,10 +21,6 @@ const checkTeamManagementAccess = (team, user) => {
 
   return false;
 };
-
-// =====================================================
-// HELPER — POPULATE TEAM
-// =====================================================
 
 const populateTeam = (query) => {
   return query
@@ -48,10 +38,6 @@ const populateTeam = (query) => {
     );
 };
 
-// =====================================================
-// CREATE TEAM
-// =====================================================
-
 const createTeam = async (req, res) => {
   try {
     const {
@@ -60,9 +46,6 @@ const createTeam = async (req, res) => {
       country,
     } = req.body;
 
-    // -------------------------------------------------
-    // Validate required fields
-    // -------------------------------------------------
 
     if (!name || !shortName || !country) {
       return res.status(400).json({
@@ -71,11 +54,7 @@ const createTeam = async (req, res) => {
           "Name, short name and country are required",
       });
     }
-
-    // -------------------------------------------------
-    // Check duplicate team name
-    // -------------------------------------------------
-
+    
     const existingTeam =
       await Team.findOne({
         $or: [
@@ -97,10 +76,6 @@ const createTeam = async (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // Build team data
-    // -------------------------------------------------
-
     const teamData = {
       name: name.trim(),
       shortName:
@@ -110,17 +85,10 @@ const createTeam = async (req, res) => {
       captain: null,
     };
 
-    // -------------------------------------------------
-    // Coach becomes team owner
-    // -------------------------------------------------
-
     if (req.user.role === "Coach") {
       teamData.coach = req.user.id;
     }
 
-    // -------------------------------------------------
-    // Admin can create team without coach
-    // -------------------------------------------------
 
     if (req.user.role === "Admin") {
       teamData.coach = null;
@@ -153,10 +121,6 @@ const createTeam = async (req, res) => {
   }
 };
 
-// =====================================================
-// GET ALL TEAMS
-// =====================================================
-
 const getTeams = async (req, res) => {
   try {
 
@@ -182,10 +146,6 @@ const getTeams = async (req, res) => {
 
   }
 };
-
-// =====================================================
-// GET SINGLE TEAM
-// =====================================================
 
 const getTeam = async (req, res) => {
   try {
@@ -219,9 +179,6 @@ const getTeam = async (req, res) => {
   }
 };
 
-// =====================================================
-// UPDATE TEAM
-// =====================================================
 
 const updateTeam = async (req, res) => {
   try {
@@ -238,10 +195,6 @@ const updateTeam = async (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // Authorization
-    // -------------------------------------------------
-
     if (
       !checkTeamManagementAccess(
         team,
@@ -255,10 +208,6 @@ const updateTeam = async (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // Prevent Coach from changing ownership
-    // -------------------------------------------------
-
     if (
       req.user.role === "Coach" &&
       req.body.coach !== undefined
@@ -270,16 +219,11 @@ const updateTeam = async (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // Validate captain
-    // -------------------------------------------------
-
     if (req.body.captain !== undefined) {
 
       const captainId =
         req.body.captain;
 
-      // Allow removing captain
       if (captainId === null) {
 
         team.captain = null;
@@ -310,8 +254,6 @@ const updateTeam = async (req, res) => {
               "Captain player not found",
           });
         }
-
-        // Captain must belong to this team
         const isCaptainInTeam =
           team.players.some(
             (playerId) =>
@@ -332,10 +274,6 @@ const updateTeam = async (req, res) => {
       }
     }
 
-    // -------------------------------------------------
-    // Update players
-    // -------------------------------------------------
-
     if (req.body.players !== undefined) {
 
       const players =
@@ -349,7 +287,6 @@ const updateTeam = async (req, res) => {
         });
       }
 
-      // Check duplicate IDs
       const uniquePlayers =
         [
           ...new Set(
@@ -370,7 +307,6 @@ const updateTeam = async (req, res) => {
         });
       }
 
-      // Validate ObjectIds
       for (
         const playerId of players
       ) {
@@ -387,7 +323,6 @@ const updateTeam = async (req, res) => {
         }
       }
 
-      // Find players
       const existingPlayers =
         await Player.find({
           _id: {
@@ -405,10 +340,6 @@ const updateTeam = async (req, res) => {
             "One or more players do not exist",
         });
       }
-
-      // -------------------------------------------------
-      // Check players belonging to other teams
-      // -------------------------------------------------
 
       for (
         const player of existingPlayers
@@ -438,9 +369,6 @@ const updateTeam = async (req, res) => {
         }
       }
 
-      // -------------------------------------------------
-      // Remove old players from this team
-      // -------------------------------------------------
 
       const oldPlayerIds =
         team.players.map(
@@ -476,7 +404,6 @@ const updateTeam = async (req, res) => {
           }
         );
 
-        // If removed player was captain
         if (
           team.captain &&
           removedPlayers.includes(
@@ -486,10 +413,6 @@ const updateTeam = async (req, res) => {
           team.captain = null;
         }
       }
-
-      // -------------------------------------------------
-      // Assign players to this team
-      // -------------------------------------------------
 
       await Player.updateMany(
         {
@@ -508,9 +431,6 @@ const updateTeam = async (req, res) => {
         players;
     }
 
-    // -------------------------------------------------
-    // Update basic fields
-    // -------------------------------------------------
 
     if (req.body.name !== undefined) {
 
@@ -605,10 +525,6 @@ const updateTeam = async (req, res) => {
   }
 };
 
-// =====================================================
-// DELETE TEAM
-// =====================================================
-
 const deleteTeam = async (req, res) => {
   try {
 
@@ -624,10 +540,6 @@ const deleteTeam = async (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // Only Admin can delete
-    // -------------------------------------------------
-
     if (
       req.user.role !== "Admin"
     ) {
@@ -637,10 +549,6 @@ const deleteTeam = async (req, res) => {
           "Only Admin can delete a team",
       });
     }
-
-    // -------------------------------------------------
-    // Remove team reference from players
-    // -------------------------------------------------
 
     await Player.updateMany(
       {
@@ -652,10 +560,6 @@ const deleteTeam = async (req, res) => {
         },
       }
     );
-
-    // -------------------------------------------------
-    // Delete team
-    // -------------------------------------------------
 
     await Team.findByIdAndDelete(
       team._id
@@ -681,10 +585,6 @@ const deleteTeam = async (req, res) => {
 
   }
 };
-
-// =====================================================
-// ADD PLAYER TO TEAM
-// =====================================================
 
 const addPlayerToTeam = async (
   req,
@@ -716,10 +616,6 @@ const addPlayerToTeam = async (
       });
     }
 
-    // -------------------------------------------------
-    // Find team
-    // -------------------------------------------------
-
     const team =
       await Team.findById(
         req.params.id
@@ -731,10 +627,6 @@ const addPlayerToTeam = async (
         message: "Team not found",
       });
     }
-
-    // -------------------------------------------------
-    // Authorization
-    // -------------------------------------------------
 
     if (
       !checkTeamManagementAccess(
@@ -749,9 +641,6 @@ const addPlayerToTeam = async (
       });
     }
 
-    // -------------------------------------------------
-    // Find player
-    // -------------------------------------------------
 
     const player =
       await Player.findById(
@@ -765,9 +654,6 @@ const addPlayerToTeam = async (
       });
     }
 
-    // -------------------------------------------------
-    // Already in this team
-    // -------------------------------------------------
 
     const alreadyExists =
       team.players.some(
@@ -784,10 +670,6 @@ const addPlayerToTeam = async (
       });
     }
 
-    // -------------------------------------------------
-    // Already belongs to another team
-    // -------------------------------------------------
-
     if (player.team) {
       return res.status(400).json({
         success: false,
@@ -795,10 +677,6 @@ const addPlayerToTeam = async (
           "Player already belongs to another team. Remove the player from the current team first.",
       });
     }
-
-    // -------------------------------------------------
-    // Add player
-    // -------------------------------------------------
 
     team.players.push(
       player._id
@@ -839,10 +717,6 @@ const addPlayerToTeam = async (
   }
 };
 
-// =====================================================
-// REMOVE PLAYER FROM TEAM
-// =====================================================
-
 const removePlayerFromTeam = async (
   req,
   res
@@ -869,9 +743,6 @@ const removePlayerFromTeam = async (
       });
     }
 
-    // -------------------------------------------------
-    // Find team
-    // -------------------------------------------------
 
     const team =
       await Team.findById(id);
@@ -882,10 +753,6 @@ const removePlayerFromTeam = async (
         message: "Team not found",
       });
     }
-
-    // -------------------------------------------------
-    // Authorization
-    // -------------------------------------------------
 
     if (
       !checkTeamManagementAccess(
@@ -900,9 +767,6 @@ const removePlayerFromTeam = async (
       });
     }
 
-    // -------------------------------------------------
-    // Check player membership
-    // -------------------------------------------------
 
     const playerExists =
       team.players.some(
@@ -919,10 +783,6 @@ const removePlayerFromTeam = async (
       });
     }
 
-    // -------------------------------------------------
-    // Remove player from team
-    // -------------------------------------------------
-
     team.players =
       team.players.filter(
         (playerIdFromTeam) =>
@@ -930,9 +790,6 @@ const removePlayerFromTeam = async (
           playerId.toString()
       );
 
-    // -------------------------------------------------
-    // Clear captain if necessary
-    // -------------------------------------------------
 
     if (
       team.captain &&
@@ -942,9 +799,6 @@ const removePlayerFromTeam = async (
       team.captain = null;
     }
 
-    // -------------------------------------------------
-    // Clear player's team reference
-    // -------------------------------------------------
 
     await Player.findByIdAndUpdate(
       playerId,
@@ -985,10 +839,6 @@ const removePlayerFromTeam = async (
 
   }
 };
-
-// =====================================================
-// EXPORTS
-// =====================================================
 
 module.exports = {
   createTeam,

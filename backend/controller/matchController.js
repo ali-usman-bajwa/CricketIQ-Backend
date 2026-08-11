@@ -1,10 +1,6 @@
 const Match = require("../models/Match");
 const Team = require("../models/Team");
 
-// =====================================================
-// CREATE MATCH
-// =====================================================
-
 const createMatch = async (req, res) => {
   try {
     const {
@@ -14,10 +10,6 @@ const createMatch = async (req, res) => {
       date,
       venue,
     } = req.body;
-
-    // -------------------------------------------------
-    // Validate required fields
-    // -------------------------------------------------
 
     if (
       !teamA ||
@@ -33,10 +25,6 @@ const createMatch = async (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // Teams cannot be the same
-    // -------------------------------------------------
-
     if (
       teamA.toString() ===
       teamB.toString()
@@ -47,10 +35,6 @@ const createMatch = async (req, res) => {
           "A team cannot play against itself",
       });
     }
-
-    // -------------------------------------------------
-    // Check teams
-    // -------------------------------------------------
 
     const teamAData =
       await Team.findById(teamA);
@@ -71,10 +55,6 @@ const createMatch = async (req, res) => {
         message: "Team B not found",
       });
     }
-
-    // =================================================
-    // COACH AUTHORIZATION
-    // =================================================
 
     if (req.user.role === "Coach") {
       const coachTeam =
@@ -106,9 +86,6 @@ const createMatch = async (req, res) => {
       }
     }
 
-    // -------------------------------------------------
-    // Create match
-    // -------------------------------------------------
 
     const match =
       await Match.create({
@@ -120,9 +97,6 @@ const createMatch = async (req, res) => {
         status: "scheduled",
       });
 
-    // -------------------------------------------------
-    // Populate response
-    // -------------------------------------------------
 
     const populatedMatch =
       await Match.findById(match._id)
@@ -154,17 +128,9 @@ const createMatch = async (req, res) => {
   }
 };
 
-// =====================================================
-// GET ALL MATCHES
-// =====================================================
-
 const getMatches = async (req, res) => {
   try {
     let query = {};
-
-    // -------------------------------------------------
-    // Coach → only matches involving coach's team
-    // -------------------------------------------------
 
     if (req.user.role === "Coach") {
       const coachTeam =
@@ -191,10 +157,6 @@ const getMatches = async (req, res) => {
         ],
       };
     }
-
-    // -------------------------------------------------
-    // Player → only matches involving player's team
-    // -------------------------------------------------
 
     if (req.user.role === "Player") {
       const Player = require("../models/Player");
@@ -232,10 +194,6 @@ const getMatches = async (req, res) => {
       };
     }
 
-    // -------------------------------------------------
-    // Admin → no filter
-    // -------------------------------------------------
-
     const matches =
       await Match.find(query)
         .populate(
@@ -268,10 +226,6 @@ const getMatches = async (req, res) => {
   }
 };
 
-// =====================================================
-// GET SINGLE MATCH
-// =====================================================
-
 const getMatch = async (req, res) => {
   try {
     const match =
@@ -286,9 +240,6 @@ const getMatch = async (req, res) => {
       });
     }
 
-    // =================================================
-    // COACH AUTHORIZATION
-    // =================================================
 
     if (req.user.role === "Coach") {
       const coachTeam =
@@ -321,10 +272,6 @@ const getMatch = async (req, res) => {
         });
       }
     }
-
-    // =================================================
-    // PLAYER AUTHORIZATION
-    // =================================================
 
     if (req.user.role === "Player") {
       const Player = require("../models/Player");
@@ -398,10 +345,6 @@ const getMatch = async (req, res) => {
   }
 };
 
-// =====================================================
-// UPDATE MATCH
-// =====================================================
-
 const updateMatch = async (req, res) => {
   try {
     const match =
@@ -415,10 +358,6 @@ const updateMatch = async (req, res) => {
         message: "Match not found",
       });
     }
-
-    // =================================================
-    // COACH AUTHORIZATION
-    // =================================================
 
     if (req.user.role === "Coach") {
       const coachTeam =
@@ -452,10 +391,6 @@ const updateMatch = async (req, res) => {
       }
     }
 
-    // -------------------------------------------------
-    // Prevent changing teams after completion
-    // -------------------------------------------------
-
     if (
       match.status === "completed" &&
       (req.body.teamA ||
@@ -467,10 +402,6 @@ const updateMatch = async (req, res) => {
           "Completed match teams cannot be changed",
       });
     }
-
-    // -------------------------------------------------
-    // Update allowed fields
-    // -------------------------------------------------
 
     const allowedFields = [
       "teamA",
@@ -525,10 +456,6 @@ const updateMatch = async (req, res) => {
   }
 };
 
-// =====================================================
-// DELETE MATCH
-// =====================================================
-
 const deleteMatch = async (req, res) => {
   try {
     const match =
@@ -543,7 +470,6 @@ const deleteMatch = async (req, res) => {
       });
     }
 
-    // Only Admin can delete
     if (req.user.role !== "Admin") {
       return res.status(403).json({
         success: false,
