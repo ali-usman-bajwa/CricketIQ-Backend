@@ -1,167 +1,88 @@
 import os
-import random
+import numpy as np
 import pandas as pd
 
 
 NUM_PLAYERS = 1000
 
-random.seed(42)
+np.random.seed(42)
 
-BASE_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)
-
-DATA_DIR = os.path.join(
-    BASE_DIR,
-    "data"
-)
-
-DATA_PATH = os.path.join(
-    DATA_DIR,
-    "players.csv"
-)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+DATA_PATH = os.path.join(DATA_DIR, "players.csv")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
 records = []
 
-
 for _ in range(NUM_PLAYERS):
+    
+    true_talent = float(np.clip(np.random.normal(65, 15), 20, 100))
+    
+    age = int(np.random.randint(18, 35))
 
-    age = random.randint(18, 35)
-
-    matches = random.randint(10, 80)
-
-    batting_average = round(
-        random.uniform(20, 55),
-        2
+    matches = int(
+        np.clip((age - 18) * 3.5 + np.random.uniform(-10, 10), 10, 80)
     )
 
-    strike_rate = round(
-        random.uniform(90, 160),
-        2
-    )
+    batting_average = round(float(np.clip(
+        20 + true_talent * 0.35 + np.random.normal(0, 7), 15, 60
+    )), 2)
 
-    matches_factor = matches / 50
+    strike_rate = round(float(np.clip(
+        90 + true_talent * 0.7 + np.random.normal(0, 10), 80, 170
+    )), 2)
 
-    total_runs = int(
-        batting_average
-        * matches
-        * random.uniform(0.8, 1.2)
-    )
+    recent_form = round(float(np.clip(
+        true_talent + np.random.normal(0, 14), 20, 100
+    )), 2)
 
-    fours = int(
-        total_runs
-        / random.uniform(8, 15)
-    )
+    consistency = round(float(np.clip(
+        30 + true_talent * 0.65 + np.random.normal(0, 10), 30, 98
+    )), 2)
 
-    sixes = int(
-        total_runs
-        / random.uniform(20, 40)
-    )
+    total_runs = int(max(0, batting_average * matches * np.random.uniform(0.8, 1.2)))
+    fours = int(total_runs / np.random.uniform(8, 15)) if total_runs > 0 else 0
+    sixes = int(total_runs / np.random.uniform(20, 40)) if total_runs > 0 else 0
 
-    total_wickets = random.randint(
-        0,
-        60
-    )
+    total_wickets = int(np.clip(
+        true_talent * 0.5 + np.random.normal(0, 15), 0, 70
+    ))
 
-    if total_wickets > 0:
-        economy = round(
-            random.uniform(5.0, 9.5),
-            2
-        )
-    else:
-        economy = 0
-
-    consistency = round(
-        random.uniform(45, 95),
-        2
-    )
-
-    recent_form = round(
-        random.uniform(45, 100),
-        2
-    )
-
-
-    potential_score = (
-
-        batting_average * 1.2
-
-        + strike_rate * 0.25
-
-        + recent_form * 0.25
-
-        + consistency * 0.15
-
-        + matches_factor * 10
-
-        + total_wickets * 0.15
-
-    )
-
-
-    potential = (
-        1
-        if potential_score >= 110
+    economy = (
+        round(float(np.clip(9.5 - true_talent * 0.03 + np.random.normal(0, 0.9), 4.5, 10)), 2)
+        if total_wickets > 0
         else 0
     )
 
-
     records.append({
-
         "age": age,
-
         "matches": matches,
-
         "totalRuns": total_runs,
-
         "battingAverage": batting_average,
-
         "strikeRate": strike_rate,
-
         "fours": fours,
-
         "sixes": sixes,
-
         "totalWickets": total_wickets,
-
         "economy": economy,
-
         "recentForm": recent_form,
-
         "consistency": consistency,
-
-        "potential": potential,
+        "_true_talent": true_talent,
     })
-
 
 
 data = pd.DataFrame(records)
 
-data.to_csv(
-    DATA_PATH,
-    index=False
-)
+threshold = data["_true_talent"].median()
 
-print(
-    "Dataset generated successfully."
-)
+data["potential"] = (data["_true_talent"] >= threshold).astype(int)
 
-print(
-    f"Total records: {len(data)}"
-)
+data = data.drop(columns=["_true_talent"])
 
-print(
-    f"Potential = 1: "
-    f"{(data['potential'] == 1).sum()}"
-)
+data.to_csv(DATA_PATH, index=False)
 
-print(
-    f"Potential = 0: "
-    f"{(data['potential'] == 0).sum()}"
-)
-
-print(
-    f"Saved to: {DATA_PATH}"
-)
+print("Dataset generated successfully.")
+print(f"Total records: {len(data)}")
+print(f"Potential = 1: {(data['potential'] == 1).sum()}")
+print(f"Potential = 0: {(data['potential'] == 0).sum()}")
+print(f"Saved to: {DATA_PATH}")
