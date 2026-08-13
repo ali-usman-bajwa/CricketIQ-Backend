@@ -1,127 +1,31 @@
-import React, { useEffect } from "react";
-import {
-  Provider,
-  useDispatch,
-  useSelector,
-} from "react-redux";
-import {
-  NavigationContainer,
-} from "@react-navigation/native";
-import {
-  View,
-  ActivityIndicator,
-} from "react-native";
-import * as SecureStore from "expo-secure-store";
+import React from "react";
+import { View, ActivityIndicator } from "react-native";
+import { useFonts, SpaceGrotesk_700Bold, SpaceGrotesk_500Medium } from "@expo-google-fonts/space-grotesk";
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
+import { AuthProvider } from "./src/context/AuthContext";
+import RootNavigator from "./src/navigation/RootNavigator";
+import { colors } from "./src/theme/theme";
 
-import {
-  store,
-  RootState,
-  AppDispatch,
-} from "./src/store/store";
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    SpaceGrotesk_700Bold,
+    SpaceGrotesk_500Medium,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+  });
 
-import AuthNavigator from "./src/navigation/AuthNavigator";
-import AppNavigator from "./src/navigation/AppNavigator";
-
-import {
-  loginSuccess,
-  finishLoading,
-} from "./src/store/slices/authSlice";
-
-import {
-  getCurrentUser,
-} from "./src/api/authApi";
-
-function RootNavigator() {
-  const dispatch =
-    useDispatch<AppDispatch>();
-
-  const {
-    isAuthenticated,
-    isLoading,
-  } = useSelector(
-    (state: RootState) => state.auth
-  );
-
-  useEffect(() => {
-    const restoreAuthentication =
-      async () => {
-        try {
-          const token =
-            await SecureStore.getItemAsync(
-              "authToken"
-            );
-
-          if (!token) {
-            dispatch(finishLoading());
-            return;
-          }
-
-          const response =
-            await getCurrentUser();
-
-          if (
-            response.success &&
-            response.data
-          ) {
-            dispatch(
-              loginSuccess({
-                token,
-                user: response.data,
-              })
-            );
-          } else {
-            await SecureStore.deleteItemAsync(
-              "authToken"
-            );
-
-            dispatch(finishLoading());
-          }
-        } catch (error) {
-          console.log(
-            "Authentication restore failed:",
-            error
-          );
-
-          await SecureStore.deleteItemAsync(
-            "authToken"
-          );
-
-          dispatch(finishLoading());
-        }
-      };
-
-    restoreAuthentication();
-  }, [dispatch]);
-
-  if (isLoading) {
+  if (!fontsLoaded) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
-      {isAuthenticated ? (
-        <AppNavigator />
-      ) : (
-        <AuthNavigator />
-      )}
-    </NavigationContainer>
-  );
-}
-
-export default function App() {
-  return (
-    <Provider store={store}>
+    <AuthProvider>
       <RootNavigator />
-    </Provider>
+    </AuthProvider>
   );
 }
