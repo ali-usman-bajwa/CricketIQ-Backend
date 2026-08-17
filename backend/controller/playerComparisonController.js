@@ -51,10 +51,19 @@ const comparePlayersController = async (req, res) => {
 
   } catch (error) {
 
-    if (
-      error.message === "Player not found" ||  error.message === "No performance data found for this player"
-    ) {
+    if (error.message === "Player not found") {
       return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message === "No performance data found for this player" ||
+      error.message === "No valid performance data available for analysis" ||
+      error.message.startsWith("Insufficient performance data")
+    ) {
+      return res.status(400).json({
         success: false,
         message: error.message,
       });

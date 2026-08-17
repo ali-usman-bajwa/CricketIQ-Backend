@@ -15,6 +15,15 @@ import { updatePlayer } from "../../api/playerApi";
 import { colors, fonts, spacing } from "../../theme/theme";
 
 const BATTING_STYLES = ["Right Hand", "Left Hand"] as const;
+const BOWLING_STYLES = [
+  "None",
+  "Right Arm Fast",
+  "Left Arm Fast",
+  "Right Arm Medium",
+  "Left Arm Medium",
+  "Right Arm Spin",
+  "Left Arm Spin",
+] as const;
 
 const SegmentedControl = <T extends string>({
   options,
@@ -49,7 +58,9 @@ const EditProfileScreen = () => {
   const [battingStyle, setBattingStyle] = useState<typeof BATTING_STYLES[number]>(
     (player?.battingStyle as any) || "Right Hand"
   );
-  const [bowlingStyle, setBowlingStyle] = useState(player?.bowlingStyle || "None");
+  const [bowlingStyle, setBowlingStyle] = useState<typeof BOWLING_STYLES[number]>(
+    (player?.bowlingStyle as any) || "None"
+  );
   const [country, setCountry] = useState(player?.country || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -103,7 +114,7 @@ const EditProfileScreen = () => {
 
       <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>BOWLING STYLE</Text>
-        <TextInput style={styles.input} value={bowlingStyle} onChangeText={setBowlingStyle} placeholder="e.g. Right Arm Fast, None" />
+        <SegmentedControl options={BOWLING_STYLES} value={bowlingStyle} onChange={setBowlingStyle} />
       </View>
 
       <View style={styles.fieldGroup}>
@@ -139,7 +150,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     paddingVertical: spacing.sm,
   },
-  segmentGroup: { flexDirection: "row", gap: spacing.sm },
+  segmentGroup: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   segment: { borderWidth: 1.5, borderColor: colors.border, borderRadius: 4, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   segmentSelected: { backgroundColor: colors.pitch, borderColor: colors.pitch },
   segmentText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.secondaryText },

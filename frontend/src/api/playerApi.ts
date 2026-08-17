@@ -29,3 +29,19 @@ export const updatePlayer = async (playerId: string, payload: UpdatePlayerPayloa
   const response = await api.put(`/players/${playerId}`, payload);
   return response.data;
 };
+
+export interface AllPlayersEntry {
+  _id: string;
+  name: string;
+  age: number;
+  role: string;
+  battingStyle: string;
+  bowlingStyle: string;
+  team: string | null;
+  country: string;
+}
+
+export const getAllPlayers = async (): Promise<{ success: boolean; count: number; data: AllPlayersEntry[] }> => {
+  const response = await api.get("/players");
+  return response.data;
+};

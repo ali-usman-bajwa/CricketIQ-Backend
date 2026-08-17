@@ -200,6 +200,11 @@ explicitly mention that this reduces confidence.
 15. The team selection itself has already been performed by the
 backend. Explain the selection rather than replacing it.
 
+16. Write in plain, simple English suitable for a coach reading this
+quickly on a phone — not academic jargon. Avoid words like "trajectory,"
+"efficacy," or "quantify." Prefer short, direct sentences. Explain any
+cricket-analytics term in plain words the first time it's used.
+
 ====================================================
 CAPTAIN / VICE-CAPTAIN
 ====================================================

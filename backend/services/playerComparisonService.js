@@ -6,14 +6,7 @@ const {
   predictPlayerPotential,
 } = require("./mlService");
 
-// =====================================================
-// COMPARE PLAYERS
-// =====================================================
-
 const comparePlayers = async (playerIds) => {
-  // -------------------------------------------------
-  // Validate input
-  // -------------------------------------------------
 
   if (!Array.isArray(playerIds)) {
     throw new Error(
@@ -33,10 +26,6 @@ const comparePlayers = async (playerIds) => {
     );
   }
 
-  // -------------------------------------------------
-  // Prevent duplicate players
-  // -------------------------------------------------
-
   const uniquePlayerIds = [
     ...new Set(
       playerIds.map((id) => id.toString())
@@ -52,17 +41,9 @@ const comparePlayers = async (playerIds) => {
     );
   }
 
-  // =================================================
-  // BUILD PLAYER COMPARISON
-  // =================================================
-
   const comparison = [];
 
   for (const playerId of uniquePlayerIds) {
-
-    // -------------------------------------------------
-    // Build features
-    // -------------------------------------------------
 
     const result =
       await buildPlayerFeatures(
@@ -79,10 +60,6 @@ const comparePlayers = async (playerIds) => {
       );
     }
 
-    // -------------------------------------------------
-    // Generate ML prediction
-    // -------------------------------------------------
-
     const prediction =
       await predictPlayerPotential(
         result.features
@@ -93,10 +70,6 @@ const comparePlayers = async (playerIds) => {
         `Unable to generate prediction for player ${playerId}`
       );
     }
-
-    // -------------------------------------------------
-    // Store comparison data
-    // -------------------------------------------------
 
     comparison.push({
       player: result.player,
@@ -111,10 +84,6 @@ const comparePlayers = async (playerIds) => {
     });
   }
 
-  // =================================================
-  // SORT BY ML POTENTIAL SCORE
-  // =================================================
-
   comparison.sort(
     (a, b) =>
       Number(
@@ -124,10 +93,6 @@ const comparePlayers = async (playerIds) => {
         a.prediction.potentialScore
       )
   );
-
-  // =================================================
-  // ASSIGN RANK
-  // =================================================
 
   const rankedComparison =
     comparison.map(
@@ -140,10 +105,6 @@ const comparePlayers = async (playerIds) => {
 
   return rankedComparison;
 };
-
-// =====================================================
-// EXPORT
-// =====================================================
 
 module.exports = {
   comparePlayers,

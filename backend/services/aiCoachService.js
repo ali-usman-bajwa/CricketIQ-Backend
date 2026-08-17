@@ -4,10 +4,6 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-// =====================================================
-// GENERATE AI PLAYER COACH
-// =====================================================
-
 const generatePlayerCoach = async ({
   player,
   features,
@@ -15,28 +11,16 @@ const generatePlayerCoach = async ({
   performances,
 }) => {
   try {
-    // -------------------------------------------------
-    // Validate performances
-    // -------------------------------------------------
 
     if (!performances || performances.length === 0) {
       throw new Error(
         "No performance data available for coaching"
       );
     }
-
-    // -------------------------------------------------
-    // playerFeatureService returns newest -> oldest.
-    // Convert to oldest -> newest for trend analysis.
-    // -------------------------------------------------
-
     const chronologicalPerformances = [
       ...performances,
     ].reverse();
 
-    // -------------------------------------------------
-    // Only use the latest 5 performances
-    // -------------------------------------------------
 
     const recentPerformances =
       chronologicalPerformances
@@ -117,10 +101,6 @@ const generatePlayerCoach = async ({
           };
         });
 
-    // =================================================
-    // TREND ANALYSIS
-    // =================================================
-
     let trendInformation = {
       chronologicalOrder:
         "OLDEST_TO_NEWEST",
@@ -149,9 +129,6 @@ const generatePlayerCoach = async ({
           recentPerformances.length - 1
         ];
 
-      // ---------------------------------------------
-      // Runs
-      // ---------------------------------------------
 
       const runDifference =
         latest.runs -
@@ -166,10 +143,6 @@ const generatePlayerCoach = async ({
       ) {
         runTrend = "DECLINING";
       }
-
-      // ---------------------------------------------
-      // Strike Rate
-      // ---------------------------------------------
 
       const strikeRateDifference =
         latest.strikeRate -
@@ -190,9 +163,6 @@ const generatePlayerCoach = async ({
           "DECLINING";
       }
 
-      // ---------------------------------------------
-      // Wickets
-      // ---------------------------------------------
 
       const wicketDifference =
         latest.wickets -
@@ -210,11 +180,6 @@ const generatePlayerCoach = async ({
           "DECLINING";
       }
 
-      // ---------------------------------------------
-      // Economy
-      //
-      // Lower economy can indicate improvement.
-      // ---------------------------------------------
 
       const economyDifference =
         latest.economy -
@@ -280,10 +245,6 @@ const generatePlayerCoach = async ({
       };
     }
 
-    // =================================================
-    // SAMPLE SIZE
-    // =================================================
-
     let sampleSizeAssessment =
       "LOW";
 
@@ -294,10 +255,6 @@ const generatePlayerCoach = async ({
       sampleSizeAssessment =
         "MEDIUM";
     }
-
-    // =================================================
-    // SOURCE INFORMATION
-    // =================================================
 
     const sourceCounts =
       recentPerformances.reduce(
@@ -313,10 +270,6 @@ const generatePlayerCoach = async ({
         },
         {}
       );
-
-    // =================================================
-    // PROMPT
-    // =================================================
 
     const prompt = `
 You are CricketIQ, an AI-powered cricket performance coach.
@@ -544,6 +497,12 @@ performances contain valid bowling data.
 24. Do not make recommendations that require information
     outside the provided data.
 
+25. Write in plain, simple English suitable for a player reading their
+own coaching plan on a phone — not analyst jargon. Avoid words like
+"trajectory," "efficacy," or "optimize." Prefer short, direct sentences.
+Explain any cricket-analytics term in plain words the first time it's
+used.
+
 ========================
 CONFIDENCE
 ========================
@@ -623,9 +582,6 @@ Remember:
 - Do not confuse ML prediction with coaching evidence.
 `;
 
-    // =================================================
-    // GEMINI REQUEST
-    // =================================================
 
     const response =
       await ai.models.generateContent({
@@ -633,30 +589,18 @@ Remember:
         contents: prompt,
       });
 
-    // =================================================
-    // CLEAN GEMINI RESPONSE
-    // =================================================
-
     let text =
       response.text.trim();
 
-    // Remove accidental Markdown fences.
     text = text
       .replace(/^```json\s*/i, "")
       .replace(/^```\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
 
-    // =================================================
-    // PARSE JSON
-    // =================================================
 
     const coaching =
       JSON.parse(text);
-
-    // =================================================
-    // BASIC OUTPUT VALIDATION
-    // =================================================
 
     const requiredFields = [
       "coachSummary",

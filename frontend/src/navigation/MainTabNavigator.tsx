@@ -2,7 +2,7 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import HomeStackNavigator from "./HomeStackNavigator";
-import PerformanceScreen from "../screens/player/PerformanceScreen";
+import PerformanceStackNavigator from "./PerformanceStackNavigator";
 import ProfileStackNavigator from "./ProfileStackNavigator";
 import { colors, fonts } from "../theme/theme";
 
@@ -29,7 +29,7 @@ const MainTabNavigator = () => (
     })}
   >
     <Tab.Screen name="Home" component={HomeStackNavigator} />
-    <Tab.Screen name="Performance" component={PerformanceScreen} />
+    <Tab.Screen name="Performance" component={PerformanceStackNavigator} />
     <Tab.Screen name="Profile" component={ProfileStackNavigator} />
   </Tab.Navigator>
 );

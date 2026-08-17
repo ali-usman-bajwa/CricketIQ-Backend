@@ -97,3 +97,96 @@ export const getAIInsights = async (playerId: string): Promise<AIInsightsRespons
   const response = await api.get(`/ai-insights/player/${playerId}`);
   return response.data;
 };
+
+// =====================================================
+// PLAYER COMPARISON (no AI narrative)
+// =====================================================
+
+export interface ComparisonEntry {
+  rank: number;
+  player: { id: string; name: string; role: string; age: number };
+  features: Record<string, number>;
+  statistics: Record<string, number>;
+  prediction: { potentialLevel: string; potentialScore: number; prediction: 0 | 1; success: boolean };
+}
+
+export interface ComparisonResponse {
+  success: boolean;
+  data: { players: ComparisonEntry[] };
+}
+
+export const comparePlayers = async (playerIds: string[]): Promise<ComparisonResponse> => {
+  const response = await api.post("/comparison", { playerIds });
+  return response.data;
+};
+
+// =====================================================
+// AI COMPARISON
+// =====================================================
+
+export interface AIComparisonNarrative {
+  overallComparison: string;
+  playerAdvantages: Array<{ player: string; advantages: string[] }>;
+  categoryComparison: Array<{ category: string; leader: string; explanation: string }>;
+  potentialComparison: string;
+  sampleSizeAssessment: string;
+  recommendation: string;
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+}
+
+export interface AIComparisonResponse {
+  success: boolean;
+  data: { players: ComparisonEntry[]; aiComparison: AIComparisonNarrative };
+}
+
+export const compareAI = async (playerIds: string[]): Promise<AIComparisonResponse> => {
+  const response = await api.post("/ai-comparison", { playerIds });
+  return response.data;
+};
+
+// =====================================================
+// TEAM BUILDER
+// =====================================================
+
+export interface RecommendedXIEntry {
+  selectionRank: number;
+  player: { id: string; name: string; role: string; age: number };
+  role: string;
+  features: Record<string, number>;
+  prediction: { potentialLevel: string; potentialScore: number; prediction: 0 | 1; success: boolean };
+}
+
+export interface TeamBuilderAnalysis {
+  teamSummary: string;
+  teamStrengths: string[];
+  teamWeaknesses: string[];
+  battingAnalysis: string;
+  bowlingAnalysis: string;
+  teamBalance: string;
+  captainRecommendation: { player: string; reason: string };
+  viceCaptainRecommendation: { player: string; reason: string };
+  keyPlayers: Array<{ player: string; reason: string }>;
+  selectionAssessment: string;
+  dataLimitations: string;
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+}
+
+export interface TeamBuilderResponse {
+  success: boolean;
+  data: {
+    format: string;
+    teamSize: number;
+    recommendedXI: RecommendedXIEntry[];
+    roleDistribution: { batters: number; wicketkeepers: number; allRounders: number; bowlers: number };
+    teamMetrics: { averagePotential: number; averageOverallImpact: number };
+    aiTeamAnalysis: TeamBuilderAnalysis;
+  };
+}
+
+export const buildTeam = async (
+  playerIds: string[],
+  format: "T20" | "ODI" | "TEST"
+): Promise<TeamBuilderResponse> => {
+  const response = await api.post("/team-builder", { playerIds, format });
+  return response.data;
+};

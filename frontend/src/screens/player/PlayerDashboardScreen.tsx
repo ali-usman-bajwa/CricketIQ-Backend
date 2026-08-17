@@ -1,10 +1,11 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import { getPlayerFeatures, PlayerFeatures } from "../../api/mlApi";
+import { getTeam } from "../../api/teamApi";
 import { colors, fonts, spacing } from "../../theme/theme";
 
 const StatTile = ({ label, value }: { label: string; value: string | number }) => (
@@ -43,6 +44,20 @@ const PlayerDashboardScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [teamName, setTeamName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadTeam = async () => {
+      if (!player?.team) return;
+      try {
+        const res = await getTeam(player.team);
+        setTeamName(res.data.name);
+      } catch {
+        setTeamName(null);
+      }
+    };
+    loadTeam();
+  }, [player?.team]);
 
   const loadFeatures = useCallback(async () => {
     if (!player?._id) return;
@@ -85,7 +100,15 @@ const PlayerDashboardScreen = () => {
         <View style={styles.header}>
           <Text style={styles.welcomeText}>Welcome back,</Text>
           <Text style={styles.greeting}>{user?.name}</Text>
-          <Text style={styles.role}>{player?.role || user?.role}</Text>
+          <View style={styles.roleTeamRow}>
+            <Text style={styles.role}>{player?.role || user?.role}</Text>
+            {teamName && (
+              <>
+                <View style={styles.dot} />
+                <Text style={styles.team}>{teamName}</Text>
+              </>
+            )}
+          </View>
         </View>
 
         {isLoading ? (
@@ -141,7 +164,10 @@ const styles = StyleSheet.create({
   header: { marginBottom: spacing.xl },
   welcomeText: { fontFamily: fonts.body, fontSize: 14, color: colors.secondaryText },
   greeting: { fontFamily: fonts.display, fontSize: 26, color: colors.primaryText, marginTop: 2 },
-  role: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.accent, marginTop: 4 },
+  roleTeamRow: { flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 },
+  role: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.accent },
+  dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.secondaryText },
+  team: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.secondaryText },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.xl },
   tile: {
     width: "47.5%",

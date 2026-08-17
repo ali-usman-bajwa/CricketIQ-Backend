@@ -5,21 +5,12 @@ const {
   calculateFeatures,
 } = require("./featureEngineering");
 
-// Minimum number of usable performance records required
 // before we consider a prediction meaningful. Below this,
 // derived stats like consistency/recentForm are unreliable
 // (e.g. a single match trivially yields consistency = 100).
 const MIN_MATCHES_FOR_PREDICTION = 3;
 
-// =====================================================
-// SELECT THE CORRECT PERFORMANCE DATA
-// =====================================================
-
 const getAnalysisReport = (performance) => {
-
-  // ---------------------------------------------------
-  // COACH VERIFIED
-  // ---------------------------------------------------
 
   if (
     performance.verificationStatus === "COACH_VERIFIED"
@@ -34,10 +25,6 @@ const getAnalysisReport = (performance) => {
     };
   }
 
-  // ---------------------------------------------------
-  // PLAYER REPORTED
-  // ---------------------------------------------------
-
   if (
     performance.verificationStatus === "PLAYER_REPORTED"
   ) {
@@ -51,22 +38,9 @@ const getAnalysisReport = (performance) => {
     };
   }
 
-  // ---------------------------------------------------
-  // COACH REPORTED BUT NOT VERIFIED
-  // ---------------------------------------------------
-  //
-  // If player data exists, use player's data
-  // until both reports are available.
-  //
-  // If only coach data exists, ignore it because
-  // it has not been verified yet.
-  // ---------------------------------------------------
-
   if (
     performance.verificationStatus === "COACH_REPORTED"
   ) {
-
-    // Player report exists → use player data temporarily
     if (performance.playerReport) {
       return {
         source: "PLAYER",
@@ -74,32 +48,21 @@ const getAnalysisReport = (performance) => {
       };
     }
 
-    // Coach report alone is not verified yet
     return null;
   }
 
   return null;
 };
 
-// =====================================================
-// BUILD PLAYER FEATURES
-// =====================================================
 
 const buildPlayerFeatures = async (playerId) => {
 
-  // ---------------------------------------------------
-  // FIND PLAYER
-  // ---------------------------------------------------
 
   const player = await Player.findById(playerId);
 
   if (!player) {
     throw new Error("Player not found");
   }
-
-  // ---------------------------------------------------
-  // GET PERFORMANCE RECORDS
-  // ---------------------------------------------------
 
   const performances = await Performance.find({
     player: playerId,
@@ -112,10 +75,6 @@ const buildPlayerFeatures = async (playerId) => {
       "No performance data found for this player"
     );
   }
-
-  // ===================================================
-  // SELECT CORRECT ANALYSIS DATA
-  // ===================================================
 
   const analysisPerformances = [];
 
@@ -136,9 +95,6 @@ const buildPlayerFeatures = async (playerId) => {
     });
   }
 
-  // ---------------------------------------------------
-  // NO USABLE DATA
-  // ---------------------------------------------------
 
   if (analysisPerformances.length === 0) {
     throw new Error(
@@ -146,19 +102,11 @@ const buildPlayerFeatures = async (playerId) => {
     );
   }
 
-  // ---------------------------------------------------
-  // NOT ENOUGH USABLE DATA FOR A RELIABLE PREDICTION
-  // ---------------------------------------------------
-
   if (analysisPerformances.length < MIN_MATCHES_FOR_PREDICTION) {
     throw new Error(
       `Insufficient performance data. Minimum ${MIN_MATCHES_FOR_PREDICTION} matches required, found ${analysisPerformances.length}`
     );
   }
-
-  // ===================================================
-  // AGGREGATED STATISTICS
-  // ===================================================
 
   const matches =
     analysisPerformances.length;
@@ -233,10 +181,6 @@ const buildPlayerFeatures = async (playerId) => {
       0
     );
 
-  // ===================================================
-  // BATTING AVERAGE
-  // ===================================================
-
   const dismissals =
     analysisPerformances.filter(
       (performance) =>
@@ -248,27 +192,16 @@ const buildPlayerFeatures = async (playerId) => {
       ? totalRuns / dismissals
       : totalRuns;
 
-  // ===================================================
-  // STRIKE RATE
-  // ===================================================
-
   const strikeRate =
     totalBalls > 0
       ? (totalRuns / totalBalls) * 100
       : 0;
-
-  // ===================================================
-  // ECONOMY
-  // ===================================================
 
   const economy =
     totalOvers > 0
       ? totalRunsConceded / totalOvers
       : 0;
 
-  // ===================================================
-  // RECENT FORM
-  // ===================================================
 
   const recentPerformances =
     analysisPerformances.slice(0, 5);
@@ -314,10 +247,6 @@ const buildPlayerFeatures = async (playerId) => {
       (weightedRecentAverage / 50) * 100
     );
 
-  // ===================================================
-  // CONSISTENCY
-  // ===================================================
-
   const runValues =
     analysisPerformances.map(
       (performance) =>
@@ -362,9 +291,6 @@ const buildPlayerFeatures = async (playerId) => {
       )
     );
 
-  // ===================================================
-  // STATISTICS
-  // ===================================================
 
   const statistics = {
     matches,
@@ -380,19 +306,12 @@ const buildPlayerFeatures = async (playerId) => {
     consistency,
   };
 
-  // ===================================================
-  // FEATURE ENGINEERING
-  // ===================================================
 
   const features =
     calculateFeatures(
       player,
       statistics
     );
-
-  // ===================================================
-  // DETERMINE CURRENT DATA SOURCE
-  // ===================================================
 
   const hasUnifiedData =
     analysisPerformances.some(
@@ -407,10 +326,6 @@ const buildPlayerFeatures = async (playerId) => {
     analysisSource = "UNIFIED";
   }
 
-  // ===================================================
-  // RETURN
-  // ===================================================
-
   return {
     player: {
       id: player._id,
@@ -419,7 +334,6 @@ const buildPlayerFeatures = async (playerId) => {
       age: player.age,
     },
 
-    // Tells ML/AI/frontend what data was used.
     performanceSource:
       analysisSource,
 

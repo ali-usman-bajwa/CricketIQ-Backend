@@ -126,7 +126,8 @@ const generatePlayerAnalysis = async ({
     const prompt = `
 You are CricketIQ, an AI-powered cricket performance and scouting analyst.
 
-Your job is to generate an objective scouting analysis of a cricket player.
+Your job is to generate an objective scouting analysis of a cricket player,
+written simply enough for the player themselves to read and understand it.
 
 IMPORTANT DATA SOURCE:
 
@@ -294,6 +295,14 @@ predictive signal, not as a direct measure of current ability.
 20. Do not use the ML potential score as the primary evidence
 for strengths or weaknesses. Current performance statistics
 and recent trends should be the primary evidence.
+
+21. Write in plain, simple English suitable for a player reading their
+own report on a phone — not analyst or scout jargon. Avoid words like
+"trajectory," "efficacy," or "quantum." Prefer short sentences. Explain
+any cricket-analytics term in plain words the first time it's used
+(e.g. say "how many runs he scores per 100 balls faced" instead of
+just "strike rate" alone, if the term itself might be unfamiliar to
+a young player).
 
 Return ONLY valid JSON.
 

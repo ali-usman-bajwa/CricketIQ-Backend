@@ -50,10 +50,6 @@ const calculateDerivedStats = (data) => {
 };
 
 
-// =====================================================
-// BUILD PERFORMANCE ANALYSIS DATA
-// =====================================================
-
 const buildUnifiedPerformance = (
   performance
 ) => {
@@ -63,11 +59,6 @@ const buildUnifiedPerformance = (
 
   const coachReport =
     performance.coachReport;
-
-
-  // ===================================================
-  // COACH REPORT ONLY
-  // ===================================================
 
   if (!playerReport && coachReport) {
     return {
@@ -81,11 +72,6 @@ const buildUnifiedPerformance = (
     };
   }
 
-
-  // ===================================================
-  // PLAYER REPORT ONLY
-  // ===================================================
-
   if (playerReport && !coachReport) {
     return {
       status: "PLAYER_REPORTED",
@@ -98,18 +84,12 @@ const buildUnifiedPerformance = (
     };
   }
 
-
-  // ===================================================
-  // BOTH REPORTS EXIST
-  // ===================================================
-
   if (playerReport && coachReport) {
     return {
       status: "COACH_VERIFIED",
       source: "UNIFIED",
       verified: true,
 
-      // Coach report is authoritative
       data:
         calculateDerivedStats(
           coachReport
@@ -117,10 +97,6 @@ const buildUnifiedPerformance = (
     };
   }
 
-
-  // ===================================================
-  // NO REPORT
-  // ===================================================
 
   return {
     status: "NO_REPORT",

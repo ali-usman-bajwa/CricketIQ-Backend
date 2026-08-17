@@ -15,6 +15,14 @@ import { colors, fonts, spacing } from "../../theme/theme";
 
 const PLAYER_ROLES = ["Batter", "Bowler", "All-Rounder", "Wicket-Keeper"] as const;
 const BATTING_STYLES = ["Right Hand", "Left Hand"] as const;
+const BOWLING_STYLES = [
+  "Right Arm Fast",
+  "Left Arm Fast",
+  "Right Arm Medium",
+  "Left Arm Medium",
+  "Right Arm Spin",
+  "Left Arm Spin",
+] as const;
 
 const SegmentedControl = <T extends string>({
   options,
@@ -31,11 +39,7 @@ const SegmentedControl = <T extends string>({
       return (
         <Pressable
           key={option}
-          style={({ pressed }) => [
-            styles.segment,
-            isSelected && styles.segmentSelected,
-            pressed && !isSelected && styles.segmentPressed,
-          ]}
+          style={[styles.segment, isSelected && styles.segmentSelected]}
           onPress={() => onChange(option)}
         >
           <Text style={[styles.segmentText, isSelected && styles.segmentTextSelected]}>
@@ -59,10 +63,13 @@ const RegisterScreen = () => {
   const [age, setAge] = useState("");
   const [playerRole, setPlayerRole] = useState<typeof PLAYER_ROLES[number]>("Batter");
   const [battingStyle, setBattingStyle] = useState<typeof BATTING_STYLES[number]>("Right Hand");
+  const [bowlingStyle, setBowlingStyle] = useState<typeof BOWLING_STYLES[number]>("Right Arm Fast");
   const [country, setCountry] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  const needsBowlingStyle = playerRole === "Bowler" || playerRole === "All-Rounder";
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -86,6 +93,7 @@ const RegisterScreen = () => {
           age: Number(age),
           playerRole,
           battingStyle,
+          bowlingStyle: needsBowlingStyle ? bowlingStyle : "None",
           country: country.trim(),
         }),
       });
@@ -153,15 +161,18 @@ const RegisterScreen = () => {
             <SegmentedControl options={BATTING_STYLES} value={battingStyle} onChange={setBattingStyle} />
           </View>
 
+          {needsBowlingStyle && (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>BOWLING STYLE</Text>
+              <SegmentedControl options={BOWLING_STYLES} value={bowlingStyle} onChange={setBowlingStyle} />
+            </View>
+          )}
+
           {renderInput("COUNTRY", country, setCountry, "country", { placeholder: "e.g. Pakistan" })}
         </>
       )}
 
-      <Pressable
-        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-        onPress={handleRegister}
-        disabled={isSubmitting}
-      >
+      <Pressable style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]} onPress={handleRegister} disabled={isSubmitting}>
         {isSubmitting ? (
           <ActivityIndicator color={colors.background} />
         ) : (
@@ -240,9 +251,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
-  segmentPressed: {
-    backgroundColor: colors.surface,
-  },
   segmentSelected: {
     backgroundColor: colors.pitch,
     borderColor: colors.pitch,
@@ -264,7 +272,6 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     backgroundColor: colors.accentPress,
-    transform: [{ scale: 0.98 }],
   },
   buttonText: {
     fontFamily: fonts.bodySemiBold,

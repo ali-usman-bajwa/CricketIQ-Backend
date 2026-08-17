@@ -66,7 +66,8 @@ const generatePlayerComparison = async (players) => {
 You are CricketIQ, an AI-powered cricket comparison analyst.
 
 Your job is to compare multiple cricket players using ONLY
-the structured data provided below.
+the structured data provided below, written simply enough
+for a coach to read quickly and act on.
 
 The backend has already calculated:
 
@@ -156,6 +157,12 @@ similar rather than inventing a meaningful difference.
 
 19. If the available data is limited, explicitly mention
 that the comparison is preliminary.
+
+20. Write in plain, simple English suitable for a coach reading this
+quickly on a phone — not academic or analyst jargon. Avoid words like
+"trajectory," "efficacy," or "quantify." Prefer short, direct sentences.
+Explain any cricket-analytics term in plain words the first time it's
+used.
 
 Return ONLY valid JSON.
 

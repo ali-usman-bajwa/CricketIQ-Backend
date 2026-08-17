@@ -7,6 +7,7 @@ import {
   LoginPayload,
   RegisterPayload,
 } from "../api/authApi";
+import { getTeams, Team } from "../api/teamApi";
 
 interface User {
   id: string;
@@ -29,6 +30,7 @@ interface PlayerProfile {
 interface AuthContextType {
   user: User | null;
   player: PlayerProfile | null;
+  coachTeam: Team | null;
   token: string | null;
   isLoading: boolean;
   showWelcome: boolean;
@@ -36,6 +38,7 @@ interface AuthContextType {
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   refreshPlayerProfile: () => Promise<void>;
+  refreshCoachTeam: () => Promise<void>;
   dismissWelcome: () => void;
 }
 
@@ -45,6 +48,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [user, setUser] = useState<User | null>(null);
   const [player, setPlayer] = useState<PlayerProfile | null>(null);
+  const [coachTeam, setCoachTeam] = useState<Team | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -52,11 +56,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchPlayerProfile = async () => {
     try {
       const data = await getCurrentUser();
-
       setPlayer(data?.data?.player || null);
     } catch (error) {
       console.error("Failed to fetch player profile:", error);
       setPlayer(null);
+    }
+  };
+
+  const fetchCoachTeam = async (userId: string) => {
+    try {
+      const res = await getTeams();
+      const mine = res.data.find((t: any) => t.coach?._id === userId) || null;
+      setCoachTeam(mine);
+    } catch (error) {
+      console.error("Failed to fetch coach's team:", error);
+      setCoachTeam(null);
     }
   };
 
@@ -74,6 +88,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           if (parsedUser.role === "Player") {
             await fetchPlayerProfile();
+          } else if (parsedUser.role === "Coach") {
+            await fetchCoachTeam(parsedUser.id);
           }
         }
       } catch (error) {
@@ -96,6 +112,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (data.user.role === "Player") {
       await fetchPlayerProfile();
+    } else if (data.user.role === "Coach") {
+      await fetchCoachTeam(data.user.id);
     }
   };
 
@@ -110,6 +128,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setToken(null);
     setUser(null);
     setPlayer(null);
+    setCoachTeam(null);
     setShowWelcome(false);
   };
 
@@ -120,6 +139,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         user,
         player,
+        coachTeam,
         token,
         isLoading,
         showWelcome,
@@ -127,6 +147,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         register,
         logout,
         refreshPlayerProfile: fetchPlayerProfile,
+        refreshCoachTeam: () => (user ? fetchCoachTeam(user.id) : Promise.resolve()),
         dismissWelcome,
       }}
     >

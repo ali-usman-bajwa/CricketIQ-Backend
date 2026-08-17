@@ -1,3 +1,5 @@
+const Player = require("../models/Player");
+
 const {
   buildPlayerFeatures,
 } = require("../services/playerFeatureService");
@@ -13,6 +15,30 @@ const {
 const generateCoach = async (req, res) => {
   try {
     const { playerId } = req.params;
+
+    if (req.user.role === "Player") {
+
+      const ownedPlayer =
+        await Player.findById(playerId);
+
+      if (!ownedPlayer) {
+        return res.status(404).json({
+          success: false,
+          message: "Player not found",
+        });
+      }
+
+      if (
+        ownedPlayer.user.toString() !==
+        req.user.id
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You are not authorized to view this player's data",
+        });
+      }
+    }
 
     const result = await buildPlayerFeatures(playerId);
 
@@ -39,14 +65,25 @@ const generateCoach = async (req, res) => {
 
   } catch (error) {
 
-    if (
-      error.message === "Player not found" ||
-      error.message ===
-        "No performance data found for this player" ||
-      error.message ===
-        "No valid performance data available for analysis"
-    ) {
+    if (error.message === "Player not found") {
       return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+      "No performance data found for this player" ||
+
+      error.message ===
+      "No valid performance data available for analysis" ||
+
+      error.message.startsWith(
+        "Insufficient performance data"
+      )
+    ) {
+      return res.status(400).json({
         success: false,
         message: error.message,
       });

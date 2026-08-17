@@ -4,11 +4,12 @@ import { View, ActivityIndicator } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import AuthNavigator from "./AuthNavigator";
 import MainTabNavigator from "./MainTabNavigator";
+import CoachTabNavigator from "./CoachTabNavigator";
 import WelcomeScreen from "../screens/WelcomeScreen";
 import { colors } from "../theme/theme";
 
 const RootNavigator = () => {
-  const { token, isLoading, showWelcome } = useAuth();
+  const { token, user, isLoading, showWelcome } = useAuth();
 
   if (isLoading) {
     return (
@@ -18,9 +19,11 @@ const RootNavigator = () => {
     );
   }
 
+  const AppShell = user?.role === "Coach" ? CoachTabNavigator : MainTabNavigator;
+
   return (
     <NavigationContainer>
-      {!token ? <AuthNavigator /> : showWelcome ? <WelcomeScreen /> : <MainTabNavigator />}
+      {!token ? <AuthNavigator /> : showWelcome ? <WelcomeScreen /> : <AppShell />}
     </NavigationContainer>
   );
 };

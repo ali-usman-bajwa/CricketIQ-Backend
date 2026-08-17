@@ -6,10 +6,6 @@ const {
   generateTeamAnalysis,
 } = require("../services/aiTeamBuilderService");
 
-// =====================================================
-// BUILD RECOMMENDED TEAM
-// =====================================================
-
 const buildRecommendedTeamController = async (
   req,
   res
@@ -19,10 +15,6 @@ const buildRecommendedTeamController = async (
       playerIds,
       format,
     } = req.body;
-
-    // =================================================
-    // VALIDATE PLAYER IDS
-    // =================================================
 
     if (!Array.isArray(playerIds)) {
       return res.status(400).json({
@@ -48,10 +40,6 @@ const buildRecommendedTeamController = async (
       });
     }
 
-    // =================================================
-    // PREVENT DUPLICATE PLAYERS
-    // =================================================
-
     const uniquePlayerIds = [
       ...new Set(
         playerIds.map((id) =>
@@ -71,10 +59,6 @@ const buildRecommendedTeamController = async (
       });
     }
 
-    // =================================================
-    // VALIDATE FORMAT
-    // =================================================
-
     const allowedFormats = [
       "T20",
       "ODI",
@@ -91,9 +75,6 @@ const buildRecommendedTeamController = async (
       });
     }
 
-    // =================================================
-    // BUILD RECOMMENDED XI
-    // =================================================
 
     const result =
       await buildRecommendedTeam({
@@ -101,10 +82,6 @@ const buildRecommendedTeamController = async (
           uniquePlayerIds,
         format,
       });
-
-    // =================================================
-    // GENERATE AI TEAM ANALYSIS
-    // =================================================
 
     const aiTeamAnalysis =
       await generateTeamAnalysis({
@@ -120,10 +97,6 @@ const buildRecommendedTeamController = async (
           result.teamMetrics,
       });
 
-    // =================================================
-    // RESPONSE
-    // =================================================
-
     return res.status(200).json({
       success: true,
 
@@ -135,10 +108,6 @@ const buildRecommendedTeamController = async (
     });
 
   } catch (error) {
-
-    // =================================================
-    // EXPECTED VALIDATION / BUSINESS ERRORS
-    // =================================================
 
     const expectedErrors = [
       "One or more players not found",
@@ -167,10 +136,6 @@ const buildRecommendedTeamController = async (
       });
     }
 
-    // =================================================
-    // UNEXPECTED ERROR
-    // =================================================
-
     console.error(
       "Team Builder Controller Error:",
       error
@@ -183,10 +148,6 @@ const buildRecommendedTeamController = async (
     });
   }
 };
-
-// =====================================================
-// EXPORT
-// =====================================================
 
 module.exports = {
   buildRecommendedTeamController,

@@ -1,20 +1,5 @@
 const Performance = require("../models/Performance");
 
-/*
-  Determines which performance data should be used
-  by ML and AI services.
-
-  PLAYER_REPORTED
-      → playerReport
-
-  COACH_REPORTED
-      → playerReport if available,
-        otherwise coachReport
-
-  COACH_VERIFIED
-      → unifiedPerformance
-*/
-
 const getAnalysisData = async (performanceId) => {
   const performance = await Performance.findById(
     performanceId
@@ -23,10 +8,6 @@ const getAnalysisData = async (performanceId) => {
   if (!performance) {
     throw new Error("Performance not found");
   }
-
-  // -----------------------------------------------
-  // COACH VERIFIED
-  // -----------------------------------------------
 
   if (
     performance.verificationStatus ===
@@ -45,10 +26,6 @@ const getAnalysisData = async (performanceId) => {
     };
   }
 
-  // -----------------------------------------------
-  // PLAYER REPORTED
-  // -----------------------------------------------
-
   if (
     performance.verificationStatus ===
     "PLAYER_REPORTED"
@@ -65,10 +42,6 @@ const getAnalysisData = async (performanceId) => {
       data: performance.playerReport,
     };
   }
-
-  // -----------------------------------------------
-  // COACH REPORTED
-  // -----------------------------------------------
 
   if (
     performance.verificationStatus ===

@@ -8,18 +8,10 @@ const {
   predictPlayerPotential,
 } = require("./mlService");
 
-// =====================================================
-// BUILD RECOMMENDED TEAM
-// =====================================================
-
 const buildRecommendedTeam = async ({
   playerIds,
   format,
 }) => {
-
-  // ===================================================
-  // VALIDATE PLAYER IDS
-  // ===================================================
 
   if (!Array.isArray(playerIds)) {
     throw new Error(
@@ -39,10 +31,6 @@ const buildRecommendedTeam = async ({
     );
   }
 
-  // ===================================================
-  // REMOVE DUPLICATES
-  // ===================================================
-
   const uniquePlayerIds = [
     ...new Set(
       playerIds.map((id) =>
@@ -60,9 +48,6 @@ const buildRecommendedTeam = async ({
     );
   }
 
-  // ===================================================
-  // VALIDATE FORMAT
-  // ===================================================
 
   const allowedFormats = [
     "T20",
@@ -77,10 +62,6 @@ const buildRecommendedTeam = async ({
       "Format must be T20, ODI, or TEST"
     );
   }
-
-  // ===================================================
-  // GET PLAYERS
-  // ===================================================
 
   const players =
     await Player.find({
@@ -97,10 +78,6 @@ const buildRecommendedTeam = async ({
       "One or more players not found"
     );
   }
-
-  // ===================================================
-  // BUILD PLAYER DATA
-  // ===================================================
 
   const playerData = [];
 
@@ -133,19 +110,11 @@ const buildRecommendedTeam = async ({
     }
   }
 
-  // ===================================================
-  // MINIMUM PERFORMANCE DATA
-  // ===================================================
-
   if (playerData.length < 11) {
     throw new Error(
       "At least 11 players with performance data are required"
     );
   }
-
-  // ===================================================
-  // SORTING
-  // ===================================================
 
   const sortByPotential = (
     a,
@@ -161,9 +130,6 @@ const buildRecommendedTeam = async ({
     b.features.overallImpact -
     a.features.overallImpact;
 
-  // ===================================================
-  // ROLE GROUPS
-  // ===================================================
 
   const wicketkeepers =
     playerData
@@ -201,10 +167,6 @@ const buildRecommendedTeam = async ({
       )
       .sort(sortByPotential);
 
-  // ===================================================
-  // ROLE VALIDATION
-  // ===================================================
-
   if (
     wicketkeepers.length === 0
   ) {
@@ -237,10 +199,6 @@ const buildRecommendedTeam = async ({
     );
   }
 
-  // ===================================================
-  // SELECT XI
-  // ===================================================
-
   const selected = [];
 
   const addPlayer = (
@@ -266,9 +224,6 @@ const buildRecommendedTeam = async ({
     }
   };
 
-  // ===================================================
-  // GUARANTEED ROLE REQUIREMENTS
-  // ===================================================
 
   addPlayer(
     wicketkeepers[0]
@@ -285,10 +240,6 @@ const buildRecommendedTeam = async ({
   bowlers
     .slice(0, 3)
     .forEach(addPlayer);
-
-  // ===================================================
-  // FILL REMAINING POSITIONS
-  // ===================================================
 
   if (
     selected.length < 11
@@ -309,7 +260,6 @@ const buildRecommendedTeam = async ({
         .sort(
           (a, b) => {
 
-            // First compare overall impact
             const impactDifference =
               b.features.overallImpact -
               a.features.overallImpact;
@@ -320,7 +270,6 @@ const buildRecommendedTeam = async ({
               return impactDifference;
             }
 
-            // Then use potential score
             return (
               b.prediction.potentialScore -
               a.prediction.potentialScore
@@ -333,10 +282,6 @@ const buildRecommendedTeam = async ({
     );
   }
 
-  // ===================================================
-  // FINAL VALIDATION
-  // ===================================================
-
   if (
     selected.length !== 11
   ) {
@@ -345,9 +290,6 @@ const buildRecommendedTeam = async ({
     );
   }
 
-  // ===================================================
-  // ROLE DISTRIBUTION
-  // ===================================================
 
   const finalRoleDistribution = {
 
@@ -380,9 +322,6 @@ const buildRecommendedTeam = async ({
       ).length,
   };
 
-  // ===================================================
-  // FINAL ROLE VALIDATION
-  // ===================================================
 
   if (
     finalRoleDistribution.wicketkeepers < 1
@@ -416,9 +355,6 @@ const buildRecommendedTeam = async ({
     );
   }
 
-  // ===================================================
-  // ROLE ORDER FOR RESPONSE
-  // ===================================================
 
   const roleOrder = {
     "Wicket-Keeper": 1,
@@ -436,10 +372,6 @@ const buildRecommendedTeam = async ({
         b.player.role
       ] || 5)
   );
-
-  // ===================================================
-  // BUILD RECOMMENDED XI
-  // ===================================================
 
   const recommendedXI =
     selected.map(
@@ -463,9 +395,6 @@ const buildRecommendedTeam = async ({
       })
     );
 
-  // ===================================================
-  // TEAM METRICS
-  // ===================================================
 
   const averagePotential =
     recommendedXI.reduce(
@@ -491,9 +420,6 @@ const buildRecommendedTeam = async ({
     ) /
     recommendedXI.length;
 
-  // ===================================================
-  // RETURN
-  // ===================================================
 
   return {
 

@@ -1,10 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
-import { getTeam } from "../../api/teamApi";
 import { colors, fonts, spacing } from "../../theme/theme";
 
 const InfoRow = ({ label, value }: { label: string; value: string | number }) => (
@@ -14,56 +11,27 @@ const InfoRow = ({ label, value }: { label: string; value: string | number }) =>
   </View>
 );
 
-const ProfileScreen = () => {
-  const { user, player, logout } = useAuth();
-  const navigation = useNavigation<any>();
-  const [teamName, setTeamName] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadTeam = async () => {
-      if (!player?.team) return;
-      try {
-        const res = await getTeam(player.team);
-        setTeamName(res.data.name);
-      } catch {
-        setTeamName(null);
-      }
-    };
-    loadTeam();
-  }, [player?.team]);
+const CoachProfileScreen = () => {
+  const { user, coachTeam, logout } = useAuth();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.avatarWrap}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarInitial}>{player?.name?.[0]?.toUpperCase() || "P"}</Text>
+            <Text style={styles.avatarInitial}>{user?.name?.[0]?.toUpperCase() || "C"}</Text>
           </View>
-          <Text style={styles.name}>{player?.name}</Text>
-          <Text style={styles.role}>{player?.role}</Text>
+          <Text style={styles.name}>{user?.name}</Text>
+          <Text style={styles.role}>Coach</Text>
         </View>
 
         <View style={styles.card}>
-          <InfoRow label="AGE" value={player?.age ?? "—"} />
-          <InfoRow label="BATTING STYLE" value={player?.battingStyle ?? "—"} />
-          <InfoRow label="BOWLING STYLE" value={player?.bowlingStyle ?? "—"} />
-          <InfoRow label="COUNTRY" value={player?.country ?? "—"} />
-          <InfoRow label="TEAM" value={teamName || "Not assigned"} />
           <InfoRow label="EMAIL" value={user?.email ?? "—"} />
+          <InfoRow label="TEAM" value={coachTeam?.name ?? "Not assigned"} />
+          <InfoRow label="SQUAD SIZE" value={coachTeam?.players?.length ?? 0} />
         </View>
 
-        <Pressable
-          style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}
-          onPress={() => navigation.navigate("EditProfile")}
-        >
-          <Ionicons name="create-outline" size={18} color={colors.background} />
-          <Text style={styles.editButtonText}>Edit Profile</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [styles.logoutButton, pressed && { opacity: 0.6 }]}
-          onPress={logout}
-        >
+        <Pressable style={({ pressed }) => [styles.logoutButton, pressed && { opacity: 0.6 }]} onPress={logout}>
           <Text style={styles.logoutText}>Log Out</Text>
         </Pressable>
       </ScrollView>
@@ -83,11 +51,8 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   infoLabel: { fontFamily: fonts.bodyMedium, fontSize: 11, letterSpacing: 1, color: colors.secondaryText },
   infoValue: { fontFamily: fonts.body, fontSize: 14, color: colors.primaryText },
-  editButton: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: spacing.xs, backgroundColor: colors.accent, borderRadius: 4, paddingVertical: spacing.md },
-  editButtonPressed: { backgroundColor: colors.accentPress },
-  editButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.background },
   logoutButton: { alignItems: "center", marginTop: spacing.lg, paddingVertical: spacing.sm },
   logoutText: { fontFamily: fonts.bodyMedium, fontSize: 14, color: "#C1443C" },
 });
 
-export default ProfileScreen;
+export default CoachProfileScreen;
