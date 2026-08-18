@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AdminHomeStackNavigator from "./AdminHomeStackNavigator";
 import AdminTeamsStackNavigator from "./AdminTeamsStackNavigator";
 import AdminMatchesStackNavigator from "./AdminMatchesStackNavigator";
+import AdminPlayersStackNavigator from "./AdminPlayersStackNavigator";
 import AdminToolsStackNavigator from "./AdminToolsStackNavigator";
 import AdminProfileScreen from "../screens/admin/AdminProfileScreen";
 import { colors, fonts } from "../theme/theme";
@@ -14,6 +15,7 @@ const ICONS: Record<string, { active: any; inactive: any }> = {
   Home: { active: "home", inactive: "home-outline" },
   Teams: { active: "shield", inactive: "shield-outline" },
   Matches: { active: "calendar", inactive: "calendar-outline" },
+  Players: { active: "people", inactive: "people-outline" },
   Tools: { active: "hardware-chip", inactive: "hardware-chip-outline" },
   Profile: { active: "person-circle", inactive: "person-circle-outline" },
 };
@@ -25,7 +27,7 @@ const AdminTabNavigator = () => (
       tabBarActiveTintColor: colors.accent,
       tabBarInactiveTintColor: colors.secondaryText,
       tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
-      tabBarLabelStyle: { fontFamily: fonts.bodyMedium, fontSize: 10 },
+      tabBarLabelStyle: { fontFamily: fonts.bodyMedium, fontSize: 9 },
       tabBarIcon: ({ focused, color, size }) => {
         const icon = ICONS[route.name];
         return <Ionicons name={focused ? icon.active : icon.inactive} size={size} color={color} />;
@@ -35,6 +37,7 @@ const AdminTabNavigator = () => (
     <Tab.Screen name="Home" component={AdminHomeStackNavigator} />
     <Tab.Screen name="Teams" component={AdminTeamsStackNavigator} />
     <Tab.Screen name="Matches" component={AdminMatchesStackNavigator} />
+    <Tab.Screen name="Players" component={AdminPlayersStackNavigator} />
     <Tab.Screen name="Tools" component={AdminToolsStackNavigator} />
     <Tab.Screen name="Profile" component={AdminProfileScreen} />
   </Tab.Navigator>

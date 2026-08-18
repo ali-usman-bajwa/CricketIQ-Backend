@@ -1,16 +1,23 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import AdminMatchesListScreen from "../screens/admin/AdminMatchesListScreen";
+import AdminMatchDetailScreen from "../screens/admin/AdminMatchDetailScreen";
 import { colors, fonts } from "../theme/theme";
 
-const AdminMatchesStackNavigator = () => (
-  <View style={styles.container}>
-    <Text style={styles.text}>Matches — coming next.</Text>
-  </View>
-);
+const Stack = createNativeStackNavigator();
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" },
-  text: { fontFamily: fonts.body, color: colors.secondaryText },
-});
+const AdminMatchesStackNavigator = () => (
+  <Stack.Navigator
+    screenOptions={{
+      headerStyle: { backgroundColor: colors.background },
+      headerTitleStyle: { fontFamily: fonts.bodySemiBold, color: colors.primaryText },
+      headerTintColor: colors.primaryText,
+      headerShadowVisible: false,
+    }}
+  >
+    <Stack.Screen name="MatchesList" component={AdminMatchesListScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="AdminMatchDetail" component={AdminMatchDetailScreen} options={{ title: "Match" }} />
+  </Stack.Navigator>
+);
 
 export default AdminMatchesStackNavigator;
