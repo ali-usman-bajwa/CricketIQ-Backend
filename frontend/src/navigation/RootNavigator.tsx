@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import AuthNavigator from "./AuthNavigator";
 import MainTabNavigator from "./MainTabNavigator";
 import CoachTabNavigator from "./CoachTabNavigator";
+import AdminTabNavigator from "./AdminTabNavigator";
 import WelcomeScreen from "../screens/WelcomeScreen";
 import { colors } from "../theme/theme";
 
@@ -19,7 +20,8 @@ const RootNavigator = () => {
     );
   }
 
-  const AppShell = user?.role === "Coach" ? CoachTabNavigator : MainTabNavigator;
+  const AppShell =
+    user?.role === "Admin" ? AdminTabNavigator : user?.role === "Coach" ? CoachTabNavigator : MainTabNavigator;
 
   return (
     <NavigationContainer>

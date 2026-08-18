@@ -50,3 +50,19 @@ export const removePlayerFromTeam = async (teamId: string, playerId: string) => 
   const response = await api.delete(`/teams/${teamId}/players/${playerId}`);
   return response.data;
 };
+
+export interface UpdateTeamPayload {
+  name?: string;
+  shortName?: string;
+  country?: string;
+}
+
+export const updateTeam = async (teamId: string, payload: UpdateTeamPayload) => {
+  const response = await api.put(`/teams/${teamId}`, payload);
+  return response.data;
+};
+
+export const deleteTeam = async (teamId: string) => {
+  const response = await api.delete(`/teams/${teamId}`);
+  return response.data;
+};
