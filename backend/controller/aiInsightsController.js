@@ -12,17 +12,10 @@ const {
   generatePlayerReport,
 } = require("../services/aiInsightsService");
 
-// =====================================================
-// GENERATE PLAYER INSIGHTS / PERFORMANCE REPORT
-// =====================================================
-
 const generatePlayerReportController = async (req, res) => {
   try {
     const { playerId } = req.params;
 
-    // -------------------------------------------------
-    // Ownership check (Players may only view their own data)
-    // -------------------------------------------------
 
     if (req.user.role === "Player") {
 
@@ -48,30 +41,12 @@ const generatePlayerReportController = async (req, res) => {
       }
     }
 
-    // -------------------------------------------------
-    // Build features using the centralized performance
-    // selection logic.
-    //
-    // This means:
-    // PLAYER_REPORTED  -> player report
-    // COACH_REPORTED   -> player report if available,
-    //                    otherwise coach report
-    // COACH_VERIFIED   -> unified performance
-    // -------------------------------------------------
-
     const result = await buildPlayerFeatures(playerId);
-
-    // -------------------------------------------------
-    // Generate ML prediction
-    // -------------------------------------------------
 
     const prediction = await predictPlayerPotential(
       result.features
     );
 
-    // -------------------------------------------------
-    // Generate AI insights
-    // -------------------------------------------------
 
     const report = await generatePlayerReport({
       player: result.player,
@@ -79,16 +54,8 @@ const generatePlayerReportController = async (req, res) => {
       features: result.features,
 
       prediction,
-
-      // These performances have already been selected
-      // by playerFeatureService according to their
-      // verification status.
       performances: result.performances,
     });
-
-    // -------------------------------------------------
-    // Response
-    // -------------------------------------------------
 
     return res.status(200).json({
       success: true,
@@ -104,9 +71,6 @@ const generatePlayerReportController = async (req, res) => {
       },
     });
   } catch (error) {
-    // -------------------------------------------------
-    // Known errors
-    // -------------------------------------------------
 
     if (error.message === "Player not found") {
       return res.status(404).json({
@@ -132,10 +96,6 @@ const generatePlayerReportController = async (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // Unexpected errors
-    // -------------------------------------------------
-
     console.error(
       "AI Insights Controller Error:",
       error
@@ -148,10 +108,6 @@ const generatePlayerReportController = async (req, res) => {
     });
   }
 };
-
-// =====================================================
-// EXPORT
-// =====================================================
 
 module.exports = {
   generatePlayerReportController,

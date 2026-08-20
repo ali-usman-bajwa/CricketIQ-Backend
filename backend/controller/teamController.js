@@ -179,7 +179,6 @@ const getTeam = async (req, res) => {
   }
 };
 
-
 const updateTeam = async (req, res) => {
   try {
 

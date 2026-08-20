@@ -5,9 +5,6 @@ const {
   calculateFeatures,
 } = require("./featureEngineering");
 
-// before we consider a prediction meaningful. Below this,
-// derived stats like consistency/recentForm are unreliable
-// (e.g. a single match trivially yields consistency = 100).
 const MIN_MATCHES_FOR_PREDICTION = 3;
 
 const getAnalysisReport = (performance) => {

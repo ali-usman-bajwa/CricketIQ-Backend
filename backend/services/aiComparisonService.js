@@ -6,19 +6,11 @@ const ai = new GoogleGenAI({
 
 const generatePlayerComparison = async (players) => {
   try {
-    // =====================================================
-    // VALIDATION
-    // =====================================================
-
     if (!Array.isArray(players) || players.length < 2) {
       throw new Error(
         "At least 2 players are required for AI comparison"
       );
     }
-
-    // =====================================================
-    // PREPARE DATA FOR GEMINI
-    // =====================================================
 
     const comparisonData = players.map((player) => ({
       rank: player.rank,
@@ -57,10 +49,6 @@ const generatePlayerComparison = async (players) => {
           player.prediction.prediction,
       },
     }));
-
-    // =====================================================
-    // GEMINI PROMPT
-    // =====================================================
 
     const prompt = `
 You are CricketIQ, an AI-powered cricket comparison analyst.
@@ -231,18 +219,10 @@ Remember:
 - Keep the comparison professional and cricket-specific.
 `;
 
-    // =====================================================
-    // GEMINI REQUEST
-    // =====================================================
-
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
     });
-
-    // =====================================================
-    // CLEAN RESPONSE
-    // =====================================================
 
     const text = response.text.trim();
 

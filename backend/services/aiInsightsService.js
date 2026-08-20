@@ -11,17 +11,6 @@ const generatePlayerReport = async ({
   performances,
 }) => {
   try {
-    // --------------------------------------------------
-    // PERFORMANCE DATA
-    // --------------------------------------------------
-
-    // playerFeatureService already returns performances
-    // using the correct source:
-    //
-    // PLAYER_REPORTED  -> playerReport
-    // COACH_REPORTED   -> playerReport / coachReport
-    // COACH_VERIFIED   -> unifiedPerformance
-
     const chronologicalPerformances = [
       ...performances,
     ].reverse();
@@ -149,10 +138,6 @@ const generatePlayerReport = async ({
           latest.strikeRate,
       };
     }
-
-    // --------------------------------------------------
-    // AI PROMPT
-    // --------------------------------------------------
 
     const prompt = `
 You are CricketIQ, an AI-powered cricket performance
@@ -415,9 +400,6 @@ Remember:
 - Do not confuse ML prediction with actual performance.
 `;
 
-    // --------------------------------------------------
-    // GEMINI
-    // --------------------------------------------------
 
     const response =
       await ai.models.generateContent({
@@ -427,10 +409,6 @@ Remember:
 
     const text =
       response.text.trim();
-
-    // --------------------------------------------------
-    // CLEAN JSON RESPONSE
-    // --------------------------------------------------
 
     const cleanedText = text
       .replace(/^```json\s*/i, "")

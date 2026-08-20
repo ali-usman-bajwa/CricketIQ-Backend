@@ -11,19 +11,12 @@ const generateTeamAnalysis = async ({
   teamMetrics,
 }) => {
   try {
-    // =====================================================
-    // VALIDATION
-    // =====================================================
 
     if (!Array.isArray(recommendedXI) || recommendedXI.length === 0) {
       throw new Error(
         "Recommended XI is required"
       );
     }
-
-    // =====================================================
-    // PREPARE TEAM DATA FOR AI
-    // =====================================================
 
     const teamData = recommendedXI.map((item) => ({
       name: item.player.name,
@@ -81,10 +74,6 @@ const generateTeamAnalysis = async ({
       prediction:
         item.prediction.prediction,
     }));
-
-    // =====================================================
-    // GEMINI PROMPT
-    // =====================================================
 
     const prompt = `
 You are CricketIQ, an AI-powered cricket team selection analyst.
@@ -311,19 +300,11 @@ Remember:
 - Do not replace backend team selection.
 `;
 
-    // =====================================================
-    // GEMINI REQUEST
-    // =====================================================
-
     const response =
       await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,
       });
-
-    // =====================================================
-    // PARSE JSON
-    // =====================================================
 
     const text =
       response.text.trim();

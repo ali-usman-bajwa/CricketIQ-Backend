@@ -14,10 +14,6 @@ const calculateFeatures = (player, statistics) => {
 
   const age = player.age || 0;
 
-  // =====================================================
-  // BATTING SCORES
-  // =====================================================
-
   const battingAverageScore = Math.min(
     100,
     (battingAverage / 50) * 100
@@ -33,9 +29,6 @@ const calculateFeatures = (player, statistics) => {
     strikeRateScore * 0.35 +
     recentForm * 0.25;
 
-  // =====================================================
-  // BOWLING IMPACT
-  // =====================================================
 
   let bowlingImpact = 0;
 
@@ -64,10 +57,6 @@ const calculateFeatures = (player, statistics) => {
       economyScore * 0.25 +
       recentForm * 0.20;
   }
-
-  // =====================================================
-  // POWER HITTING
-  // =====================================================
 
   const totalBalls =
     statistics.totalBalls || 0;
@@ -104,15 +93,9 @@ const calculateFeatures = (player, statistics) => {
     sixScore * 0.3 +
     strikeRatePowerScore * 0.3;
 
-  // =====================================================
-  // ROLE-AWARE OVERALL IMPACT
-  // =====================================================
 
   let overallImpact = 0;
 
-  // ---------------------------------------------
-  // BATTER
-  // ---------------------------------------------
 
   if (player.role === "Batter") {
     overallImpact =
@@ -122,10 +105,6 @@ const calculateFeatures = (player, statistics) => {
       consistency * 0.15;
   }
 
-  // ---------------------------------------------
-  // BOWLER
-  // ---------------------------------------------
-
   else if (player.role === "Bowler") {
     overallImpact =
       bowlingImpact * 0.55 +
@@ -133,9 +112,6 @@ const calculateFeatures = (player, statistics) => {
       consistency * 0.25;
   }
 
-  // ---------------------------------------------
-  // ALL-ROUNDER
-  // ---------------------------------------------
 
   else if (player.role === "All-Rounder") {
     overallImpact =
@@ -146,16 +122,6 @@ const calculateFeatures = (player, statistics) => {
       consistency * 0.15;
   }
 
-  // ---------------------------------------------
-  // WICKET-KEEPER
-  // ---------------------------------------------
-  //
-  // Your current dataset does not contain
-  // wicketkeeping-specific statistics.
-  //
-  // Therefore, evaluate the wicketkeeper
-  // primarily through batting performance.
-  // ---------------------------------------------
 
   else if (player.role === "Wicket-Keeper") {
     overallImpact =
@@ -165,10 +131,6 @@ const calculateFeatures = (player, statistics) => {
       consistency * 0.15;
   }
 
-  // ---------------------------------------------
-  // FALLBACK
-  // ---------------------------------------------
-
   else {
     overallImpact =
       battingImpact * 0.45 +
@@ -176,10 +138,6 @@ const calculateFeatures = (player, statistics) => {
       consistency * 0.25 +
       powerHitting * 0.10;
   }
-
-  // =====================================================
-  // RETURN FEATURES
-  // =====================================================
 
   return {
     age,
