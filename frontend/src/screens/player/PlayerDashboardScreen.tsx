@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { getPlayerFeatures, PlayerFeatures } from "../../api/mlApi";
 import { getTeam } from "../../api/teamApi";
 import { colors, fonts, spacing } from "../../theme/theme";
+import NoDataTipsCard from "../../components/NoDataTipsCard";
 
 const StatTile = ({ label, value }: { label: string; value: string | number }) => (
   <View style={styles.tile}>
@@ -114,10 +115,7 @@ const PlayerDashboardScreen = () => {
         {isLoading ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xxl }} />
         ) : errorMessage ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="bar-chart-outline" size={32} color={colors.secondaryText} />
-            <Text style={styles.emptyStateText}>{errorMessage}</Text>
-          </View>
+          <NoDataTipsCard role={player?.role} />
         ) : (
           features && (
             <View style={styles.grid}>

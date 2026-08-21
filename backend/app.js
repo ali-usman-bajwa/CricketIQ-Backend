@@ -13,6 +13,7 @@ const aiComparisonRoutes = require("./routes/aiComparisonRoutes");
 const teamBuilderRoutes = require("./routes/teamBuilderRoutes");
 const aiInsightsRoutes = require("./routes/aiInsightsRoute");
 const errorMiddleware = require("./middleware/errorMiddleware");
+const aiTipsRoutes = require("./routes/aiTipsRoutes");
 
 const app = express();
 
@@ -42,6 +43,6 @@ app.use("/api/ai-comparison",aiComparisonRoutes);
 app.use("/api/team-builder",teamBuilderRoutes);
 app.use("/api/ai-insights", aiInsightsRoutes);
 app.use(errorMiddleware);
-
+app.use("/api/ai-tips", aiTipsRoutes);
 
 module.exports = app;

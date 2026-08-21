@@ -4,6 +4,7 @@ import { useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { getAICoachPlan, AICoachResponse } from "../../api/aiApi";
 import ExpandableText from "../../components/ExpandableText";
+import NoDataTipsCard from "../../components/NoDataTipsCard";
 import { colors, fonts, spacing } from "../../theme/theme";
 
 const CONFIDENCE_COLORS: Record<string, string> = {
@@ -83,10 +84,9 @@ const AICoachScreen = () => {
 
   if (errorMessage || !data) {
     return (
-      <View style={styles.centered}>
-        <Ionicons name="alert-circle-outline" size={32} color={colors.secondaryText} />
-        <Text style={styles.errorText}>{errorMessage}</Text>
-      </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <NoDataTipsCard />
+      </ScrollView>
     );
   }
 
@@ -162,7 +162,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   loadingText: { fontFamily: fonts.body, color: colors.secondaryText },
-  errorText: { fontFamily: fonts.body, color: colors.secondaryText, textAlign: "center" },
 
   priorityCard: {
     backgroundColor: colors.pitch,

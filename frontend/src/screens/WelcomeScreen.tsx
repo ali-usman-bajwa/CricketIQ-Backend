@@ -12,7 +12,7 @@ const WelcomeScreen = () => {
         <Text style={styles.wordmark}>
           Cricket<Text style={styles.wordmarkAccent}>IQ</Text>
         </Text>
-        <Text style={styles.greeting}>Welcome back, {user?.name?.split(" ")[0]}</Text>
+        <Text style={styles.greeting}>Welcome , {user?.name?.split(" ")[0]}</Text>
         <Text style={styles.subtitle}>Your performance intelligence is ready.</Text>
       </View>
 

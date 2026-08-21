@@ -3,8 +3,9 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-nat
 import { useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { getAIScoutAnalysis, AIScoutResponse } from "../../api/aiApi";
-import CircularGauge from "../../components/CircularGauge"
+import CircularGauge from "../../components/CircularGauge";
 import ExpandableText from "../../components/ExpandableText";
+import NoDataTipsCard from "../../components/NoDataTipsCard";
 import { colors, fonts, spacing } from "../../theme/theme";
 
 const CONFIDENCE_COLORS: Record<string, string> = {
@@ -77,10 +78,9 @@ const AIScoutScreen = () => {
 
   if (errorMessage || !data) {
     return (
-      <View style={styles.centered}>
-        <Ionicons name="alert-circle-outline" size={32} color={colors.secondaryText} />
-        <Text style={styles.errorText}>{errorMessage}</Text>
-      </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <NoDataTipsCard />
+      </ScrollView>
     );
   }
 
@@ -107,7 +107,7 @@ const AIScoutScreen = () => {
         <TrendPill label="STRIKE RATE" trend={analysis.recentTrend.strikeRateTrend} />
       </View>
 
-      {/* STRENGTHS / IMPROVEMENTS — side by side, capped at 2 lines each */}
+      {/* STRENGTHS / IMPROVEMENTS — side by side */}
       <View style={styles.splitRow}>
         <View style={[styles.card, styles.splitCard]}>
           <Text style={styles.cardTitle}>STRENGTHS</Text>
@@ -145,7 +145,6 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingBottom: spacing.xxl, gap: spacing.md },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background, gap: spacing.sm, padding: spacing.xl },
   loadingText: { fontFamily: fonts.body, color: colors.secondaryText },
-  errorText: { fontFamily: fonts.body, color: colors.secondaryText, textAlign: "center" },
 
   hero: { flexDirection: "row", alignItems: "center", gap: spacing.lg, marginBottom: spacing.sm },
   heroText: { flex: 1, gap: spacing.xs },
